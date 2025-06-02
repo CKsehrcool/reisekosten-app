@@ -14,14 +14,11 @@ KILOMETERGELD = 0.5
 KÜRZUNG_INLAND = {"frühstück": 4.5, "mittagessen": 7.5}
 
 AUSLAND_PAUSCHALEN = {
-    "Deutschland": {"voll": 58.0, "teil": 34.0},
-    "Schweiz": {"voll": 81.0, "teil": 48.0},
-    "Liechtenstein": {"voll": 81.0, "teil": 48.0},
-    "Italien": {"voll": 58.0, "teil": 34.0},
-    "Tschechien": {"voll": 49.0, "teil": 30.0},
-    "Slowakei": {"voll": 49.0, "teil": 30.0},
-    "Frankreich": {"voll": 58.0, "teil": 34.0},
-    "Andere": {"voll": 50.0, "teil": 33.0}
+    "Deutschland": {"voll": 63.20, "teil": 35.30},
+    "Schweiz": {"voll": 69.50, "teil": 36.80},
+    "Liechtenstein": {"voll": 69.50, "teil": 36.80},
+    "Italien": {"voll": 63.7, "teil": 35.80}
+    
 }
 AUSLAND_KÜRZUNG = {"frühstück": 0.2, "mittagessen": 0.4}
 
