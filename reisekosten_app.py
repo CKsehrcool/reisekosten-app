@@ -40,7 +40,7 @@ def calculate_verpflegung(reise):
         if reise.get('mittagessen'):
             pauschale -= 7.50
         tage = (reise['enddatum'] - reise['startdatum']).days + 1
-return pauschale * tage
+    return pauschale * tage
     
     else:  # Ausland
         land = reise['land']
