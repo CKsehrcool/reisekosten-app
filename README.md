@@ -1,3 +1,3 @@
-# Reisekostenabrechnung AT – mit transparenter Darstellung
+# Reisekosten Österreich mit Geschäftsessen
 
-Brutto-Tagesgeld, Kürzungen (Frühstück, Essen), Netto-Wert und Gesamtsumme werden separat dargestellt.
+Unterstützt pauschale Kürzung bei Geschäftsessen (1/3 Taggeld Ausland) laut LStR.
