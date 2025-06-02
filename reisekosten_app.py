@@ -1,7 +1,7 @@
 # app.py
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, time, timedelta
 import calendar
 import os
 from io import BytesIO
@@ -46,9 +46,20 @@ def calculate_verpflegung(reise):
         vollsatz = AUSLAND_PAUSCHALEN.get(land, AUSLAND_PAUSCHALEN['Andere'])['voll']
         teilsatz = AUSLAND_PAUSCHALEN.get(land, AUSLAND_PAUSCHALEN['Andere'])['teil']
         
-        # Tage berechnen
-        tage_voll = reise['tage']
-        tage_teil = 1 if reise['stunden'] > 8 else 0
+        # Tage und Stunden berechnen
+        start_dt = datetime.combine(reise['startdatum'], reise['startzeit'])
+        end_dt = datetime.combine(reise['enddatum'], reise['endzeit'])
+        
+        # Gesamtdauer in Stunden
+        stunden_gesamt = (end_dt - start_dt).total_seconds() / 3600
+        
+        # Tageberechnung für Ausland
+        tage_voll = reise['tage'] - 1  # Volle Tage ohne An-/Abreisetag
+        if stunden_gesamt > 24:
+            tage_voll = max(0, reise['tage'] - 2)  # Anreisetag und Abreisetag abziehen
+            
+        # Teiltagpauschale nur wenn mindestens 8 Stunden
+        tage_teil = 1 if stunden_gesamt >= 8 else 0
         
         gesamt = (tage_voll * vollsatz) + (tage_teil * teilsatz)
         
@@ -84,12 +95,8 @@ def save_reise():
         ende = st.session_state.current_reise['enddatum']
         tage = (ende - start).days + 1
         
-        # Stunden berechnen (für Ausland)
-        stunden = (ende - start).total_seconds() / 3600
-        
         st.session_state.current_reise.update({
             'tage': tage,
-            'stunden': stunden,
             'kosten': berechne_reisekosten(st.session_state.current_reise)
         })
         
@@ -125,6 +132,13 @@ with st.expander("Neue Reise erfassen", expanded=True):
         end_datum = st.date_input("Enddatum*", datetime.today())
         st.session_state.current_reise['startdatum'] = start_datum
         st.session_state.current_reise['enddatum'] = end_datum
+        
+        if reiseart == 'Ausland':
+            col_t1, col_t2 = st.columns(2)
+            with col_t1:
+                st.session_state.current_reise['startzeit'] = st.time_input("Startzeit*", time(8,0))
+            with col_t2:
+                st.session_state.current_reise['endzeit'] = st.time_input("Endzeit*", time(17,0))
         
     with col2:
         st.session_state.current_reise['von'] = st.text_input("Startort*")
@@ -192,6 +206,15 @@ else:
                 'Fahrtkosten': f"{reise['kosten']['kilometergeld']:.2f}€",
                 'Gesamt': f"{reise['kosten']['gesamt']:.2f}€"
             }
+            
+            # Zusätzliche Infos für Auslandsreisen
+            if reise['reiseart'] == 'Ausland':
+                start_dt = datetime.combine(reise['startdatum'], reise.get('startzeit', time(0,0)))
+                end_dt = datetime.combine(reise['enddatum'], reise.get('endzeit', time(0,0)))
+                stunden = (end_dt - start_dt).total_seconds() / 3600
+                row['Stunden'] = f"{stunden:.1f}h"
+                row['Land'] = reise.get('land', '')
+            
             reisen_data.append(row)
     
     if reisen_data:
@@ -219,6 +242,12 @@ else:
                         'Sonstiges': reise.get('sonstiges', 0),
                         'Gesamt': reise['kosten']['gesamt']
                     }
+                    
+                    if reise['reiseart'] == 'Ausland':
+                        detail['Land'] = reise.get('land', '')
+                        detail['Startzeit'] = reise.get('startzeit', '').strftime('%H:%M') if 'startzeit' in reise else ''
+                        detail['Endzeit'] = reise.get('endzeit', '').strftime('%H:%M') if 'endzeit' in reise else ''
+                    
                     details.append(detail)
             
             details_df = pd.DataFrame(details)
@@ -272,5 +301,9 @@ with col_r2:
     st.markdown("**Kürzungen Ausland**")
     st.markdown("- Frühstück: 20% Abzug")
     st.markdown("- Mittagessen: 40% Abzug")
+    st.markdown("**Berechnungslogik**")
+    st.markdown("- >24h: Volle Tagespauschale")
+    st.markdown("- 8-24h: Teilsatzpauschale")
+    st.markdown("- <8h: Keine Verpflegungspauschale")
 
 st.caption("Quellen: WKO-Verordnung 2025, Bundesministerium für Finanzen Österreich, USP-Guidelines 2025")
