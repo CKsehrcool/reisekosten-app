@@ -1,3 +1,3 @@
-# Reisekostenabrechnung Österreich
+# Reisekostenabrechnung AT – mit transparenter Darstellung
 
-Mit vollständigen Eingabefeldern und korrekter Frühstückskürzung Inland/Ausland.
+Brutto-Tagesgeld, Kürzungen (Frühstück, Essen), Netto-Wert und Gesamtsumme werden separat dargestellt.
