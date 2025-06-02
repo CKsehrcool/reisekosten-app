@@ -1,156 +1,139 @@
-
-import streamlit as st
-from datetime import datetime, date, time
+iimport streamlit as st
 import pandas as pd
-import io
+from datetime import datetime, timedelta
+from io import BytesIO
 
-# Page config
-st.set_page_config(page_title="Reisekostenabrechnung Österreich 2025", layout="wide")
+st.set_page_config(page_title="Reisekostenabrechnung Österreich", layout="wide")
 
-# Regelsätze
-INLAND_PAUSCHALE = 30.0
-INLAND_NACHT = 17.0
-KILOMETERGELD = 0.5
-KÜRZUNG_INLAND = {"frühstück": 4.5, "mittagessen": 7.5}
+st.title("🇦🇹 Reisekostenabrechnung nach österreichischem Finanzrecht")
+st.markdown(
+    "Diese App erfasst alle relevanten Angaben für die steuerliche Reisekostenabrechnung in Österreich, "
+    "inkl. Beleg-Upload, Taggeld-, Nächtigungsgeld- und Kilometergeld-Berechnung. "
+    "Für mehrere Reisen je Mitarbeiter. Excel-Export am Ende."
+)
 
-
-AUSLAND_PAUSCHALEN = {
-    "Deutschland": {"voll": 35.30, "nacht": 27.90},
-    "Deutschland (Grenzorte)": {"voll": 30.70, "nacht": 18.10},
-    "Frankreich": {"voll": 32.70, "nacht": 24.00},
-    "Frankreich (Paris/Straßburg)": {"voll": 35.80, "nacht": 32.70},
-    "Italien": {"voll": 35.80, "nacht": 27.90},
-    "Italien (Rom/Mailand)": {"voll": 40.60, "nacht": 36.40},
-    "Schweiz": {"voll": 36.80, "nacht": 32.70},
-    "Schweiz (Grenzorte)": {"voll": 30.70, "nacht": 18.10},
-    "Spanien": {"voll": 34.20, "nacht": 30.50},
-    "Tschechien": {"voll": 31.00, "nacht": 24.40},
-    "Ungarn": {"voll": 26.60, "nacht": 26.60},
-    "USA": {"voll": 52.30, "nacht": 42.90},
-    "USA (New York/Washington)": {"voll": 65.40, "nacht": 51.00},
-    "Andere": {"voll": 30.00, "nacht": 25.00}
-
-AUSLAND_KÜRZUNG = {"frühstück": 0.2, "mittagessen": 0.4}
+# Dummy-Userliste für Drop-Down
+mitarbeiter_liste = ["Max Mustermann", "Maria Beispiel", "Hans Huber", "Frei wählbar..."]
 
 if "reisen" not in st.session_state:
-    st.session_state.reisen = []
+    st.session_state["reisen"] = []
 
-def berechne_verpflegung(art, land, startdatum, startzeit, enddatum, endzeit, frueh, mittag):
-    start_dt = datetime.combine(startdatum, startzeit)
-    end_dt = datetime.combine(enddatum, endzeit)
-    dauer = (end_dt - start_dt).total_seconds() / 3600
-    tage = (enddatum - startdatum).days + 1
-
-    if art == "Inland":
-        betrag = tage * INLAND_PAUSCHALE
-        if frueh:
-            betrag -= KÜRZUNG_INLAND["frühstück"]
-        if mittag:
-            betrag -= KÜRZUNG_INLAND["mittagessen"]
-        return max(0, round(betrag, 2))
-
-    satz = AUSLAND_PAUSCHALEN.get(land, AUSLAND_PAUSCHALEN["Andere"])
-    voll, teil = satz["voll"], satz["teil"]
-    if dauer < 8:
-        return 0
-    elif dauer < 24:
-        betrag = teil
+def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, ausland=False):
+    diff = rueckkehr - abreise
+    stunden = diff.total_seconds() / 3600
+    if ausland:
+        # Default: 40€ Auslandspauschale pro Tag (für Demo), bitte nach Bedarf anpassen.
+        taggeld_voll = 40
     else:
-        betrag = 2 * teil + (tage - 2) * voll if tage > 2 else 2 * teil
+        taggeld_voll = 26.4
+    taggeld = 0
+    if stunden >= 24:
+        tage = int(stunden // 24)
+        rest = stunden % 24
+        taggeld = tage * taggeld_voll
+        taggeld += round((rest // 1) * (taggeld_voll / 12), 2)
+    elif stunden >= 3:
+        taggeld = round((stunden // 1) * (taggeld_voll / 12), 2)
+    # Kürzung bei kostenlosen Mahlzeiten
+    if mahlzeiten:
+        if mahlzeiten.get("Mittag", False):
+            taggeld *= 2/3
+        if mahlzeiten.get("Abend", False):
+            taggeld *= 2/3
+    return round(taggeld, 2)
 
-    if frueh:
-        betrag -= teil * AUSLAND_KÜRZUNG["frühstück"]
-    if mittag:
-        betrag -= teil * AUSLAND_KÜRZUNG["mittagessen"]
-    return max(0, round(betrag, 2))
+def km_geld(km):
+    return round(km * 0.5, 2)
 
-# Layout
-st.markdown("## 🇦🇹 Reisekostenabrechnung Österreich 2025")
-with st.expander("Neue Reise erfassen", expanded=True):
-    col1, col2 = st.columns(2)
-    with col1:
-        mitarbeiter = st.text_input("Mitarbeitername*")
-        projekt = st.text_input("Projekt*")
-        reiseart = st.radio("Reiseart*", ["Inland", "Ausland"])
-        if reiseart == "Inland":
-            st.info(f"Verpflegungspauschale Inland: {INLAND_PAUSCHALE:.2f}€ pro Tag")
-        startdatum = st.date_input("Startdatum*", value=date.today())
-        enddatum = st.date_input("Enddatum*", value=date.today())
-    with col2:
-        startort = st.text_input("Startort*")
-        zielort = st.text_input("Zielort*")
-        stops = st.text_input("Zwischenstopps (durch Komma getrennt)")
-        land = st.selectbox("Zielland*", list(AUSLAND_PAUSCHALEN.keys())) if reiseart == "Ausland" else "Österreich"
-        startzeit = st.time_input("Startzeit", time(8, 0))
-        endzeit = st.time_input("Endzeit", time(17, 0))
+def reisekosten_formular(index=None):
+    with st.form(key=f"reise_{index if index is not None else 'neu'}"):
+        cols = st.columns(3)
+        mitarbeiter = cols[0].selectbox("Mitarbeiter", mitarbeiter_liste, key=f"mitarbeiter_{index}")
+        projekt = cols[1].text_input("Projekt / Kostenstelle", key=f"projekt_{index}")
+        reiseart = cols[2].selectbox("Reiseart", ["Inland", "Ausland"], key=f"reiseart_{index}")
+        startort = st.text_input("Startort", key=f"startort_{index}")
+        zielort = st.text_input("Zielort", key=f"zielort_{index}")
+        stops = st.text_area("Zwischenstopps (optional, jeweils neue Zeile)", key=f"stops_{index}")
+        col1, col2 = st.columns(2)
+        abfahrt = col1.datetime_input("Abfahrt (Datum und Uhrzeit)", value=datetime.now(), key=f"abfahrt_{index}")
+        rueckkehr = col2.datetime_input("Rückkehr (Datum und Uhrzeit)", value=datetime.now()+timedelta(hours=8), key=f"rueckkehr_{index}")
+        transportmittel = st.multiselect(
+            "Transportmittel", ["PKW (privat)", "Bahn", "Flug", "Mietwagen", "Öffis", "Taxi", "Fahrrad"], key=f"tm_{index}"
+        )
+        km_anzahl = st.number_input("Gefahrene Kilometer (nur für PKW privat, sonst 0)", min_value=0, max_value=2000, value=0, key=f"km_{index}")
+        # Taggeld
+        with st.expander("Mahlzeiten während der Reise (für Kürzung Taggeld):"):
+            mahlzeiten = {
+                "Mittag": st.checkbox("Kostenloses Mittagessen erhalten?", key=f"mittag_{index}"),
+                "Abend": st.checkbox("Kostenloses Abendessen erhalten?", key=f"abend_{index}"),
+            }
+        # Nächtigung
+        nae_pa = st.radio("Nächtigungsgeld", ["Pauschale (15€/Nacht)", "Tatsächliche Hotelrechnung"], key=f"naechti_{index}")
+        hotel_betrag, hotel_beleg = 0, None
+        if nae_pa == "Tatsächliche Hotelrechnung":
+            hotel_betrag = st.number_input("Hotelkosten (€)", min_value=0.0, step=1.0, key=f"hotel_{index}")
+            hotel_beleg = st.file_uploader("Beleg für Hotel (PDF/JPG)", type=["pdf", "jpg", "jpeg", "png"], key=f"beleg_hotel_{index}")
+        else:
+            hotel_betrag = 15
+        # Weitere Belege
+        with st.expander("Weitere Belege hochladen"):
+            belege = {}
+            for kategorie in ["Mietwagen", "Öffis", "Maut", "Bewirtung", "Parken", "Sonstiges"]:
+                belege[kategorie] = st.file_uploader(f"{kategorie}-Beleg (PDF/JPG)", type=["pdf", "jpg", "jpeg", "png"], key=f"beleg_{kategorie}_{index}")
+        bemerkung = st.text_area("Bemerkungen (optional)", key=f"bemerk_{index}")
+        submit = st.form_submit_button("Reise speichern")
+        if submit:
+            st.success("Reise gespeichert.")
+            return {
+                "Mitarbeiter": mitarbeiter,
+                "Projekt": projekt,
+                "Reiseart": reiseart,
+                "Startort": startort,
+                "Zielort": zielort,
+                "Zwischenstopps": stops,
+                "Abfahrt": abfahrt,
+                "Rückkehr": rueckkehr,
+                "Transportmittel": transportmittel,
+                "Kilometer": km_anzahl,
+                "Mahlzeiten": mahlzeiten,
+                "Nächtigungsgeld": nae_pa,
+                "Hotelbetrag": hotel_betrag,
+                "Hotelbeleg": hotel_beleg.name if hotel_beleg else None,
+                "Belege": {k: (v.name if v else None) for k, v in belege.items()},
+                "Bemerkung": bemerkung,
+                "Taggeld": taggeld_berechnen(abfahrt, rueckkehr, mahlzeiten, reiseart == "Ausland"),
+                "Kilometergeld": km_geld(km_anzahl),
+                "Gesamtkosten": taggeld_berechnen(abfahrt, rueckkehr, mahlzeiten, reiseart == "Ausland") +
+                    (hotel_betrag if hotel_betrag else 0) + km_geld(km_anzahl)
+            }
+    return None
 
-    st.markdown("### Mahlzeiten inkludiert")
-    colm1, colm2 = st.columns(2)
-    with colm1:
-        frueh = st.checkbox("Frühstück")
-    with colm2:
-        mittag = st.checkbox("Mittagessen")
+# Reiseformular für neue Reise
+st.header("Neue Reise erfassen")
+reise = reisekosten_formular()
+if reise:
+    st.session_state["reisen"].append(reise)
 
-    st.markdown("### Kosten")
-    km = st.number_input("Kilometer (PKW)", min_value=0, step=1)
-    uebernachtungen = st.number_input("Übernachtungen", min_value=0, step=1)
-    maut = st.number_input("Mautgebühren (€)", min_value=0.0, step=1.0)
-    parken = st.number_input("Parken (€)", min_value=0.0, step=1.0)
-    sonstiges = st.number_input("Sonstige Kosten (€)", min_value=0.0, step=1.0)
-
-    if st.button("Reise speichern"):
-        verpflegung = berechne_verpflegung(reiseart, land, startdatum, startzeit, enddatum, endzeit, frueh, mittag)
-        fahrtkosten = km * KILOMETERGELD
-        uebernachtungskosten = uebernachtungen * INLAND_NACHT if reiseart == "Inland" else 0
-        gesamt = verpflegung + fahrtkosten + maut + parken + sonstiges + uebernachtungskosten
-
-        st.session_state.reisen.append({
-            "Monat": startdatum.strftime("%B"),
-            "Mitarbeiter": mitarbeiter,
-            "Projekt": projekt,
-            "Reiseart": reiseart,
-            "Von": startort,
-            "Nach": zielort,
-            "Datum": f"{startdatum.strftime('%d.%m.%Y')} - {enddatum.strftime('%d.%m.%Y')}",
-            "Tage": (enddatum - startdatum).days + 1,
-            "Verpflegung": verpflegung,
-            "Fahrtkosten": fahrtkosten,
-            "Gesamt": gesamt,
-            "Land": land
-        })
-        st.success("Reise gespeichert.")
-
-# Anzeige gespeicherter Reisen + Export
-st.subheader("Gespeicherte Reisen")
-df = pd.DataFrame(st.session_state.reisen)
-if not df.empty:
-    monat = st.selectbox("Monat auswählen", sorted(df["Monat"].unique()))
-    df_monat = df[df["Monat"] == monat]
-    st.dataframe(df_monat, use_container_width=True)
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_monat.to_excel(writer, index=False, sheet_name="Reisen")
-    st.download_button("Excel Export herunterladen", data=buffer.getvalue(), file_name=f"Reisen_{monat}.xlsx")
+# Übersicht
+st.header("Reiseübersicht")
+if st.session_state["reisen"]:
+    df = pd.DataFrame(st.session_state["reisen"])
+    st.dataframe(df[["Mitarbeiter", "Projekt", "Reiseart", "Startort", "Zielort", "Abfahrt", "Rückkehr",
+                     "Taggeld", "Hotelbetrag", "Kilometergeld", "Gesamtkosten"]])
+    st.markdown(f"**Anzahl Reisen:** {len(df)}")
+    st.markdown(f"**Gesamtkosten (alle Reisen):** € {round(df['Gesamtkosten'].sum(), 2)}")
 else:
     st.info("Noch keine Reisen erfasst.")
 
-# Legende
-st.subheader("Aktuelle Regelsätze 2025")
-colL, colR = st.columns(2)
-with colL:
-    st.markdown("- Verpflegungspauschale: 30.0€/Tag")
-    st.markdown("- Kürzung Frühstück: 4.50€")
-    st.markdown("- Kürzung Mittagessen: 7.50€")
-    st.markdown("- Nächtigungspauschale: 17.0€/Nacht")
-    st.markdown("- Kilometergeld: 0.5€/km")
-with colR:
-    st.markdown("**Ausland (Beispiele)**")
-    for k, v in AUSLAND_PAUSCHALEN.items():
-        st.markdown(f"- {k}: {v['voll']}€ (>24h), {v['teil']}€ (8–24h)")
-    st.markdown("**Kürzungen Ausland**")
-    st.markdown("- Frühstück: 20% Abzug")
-    st.markdown("- Mittagessen: 40% Abzug")
-    st.markdown("**Berechnungslogik**")
-    st.markdown("- 24h: Volle Tagespauschale")
-    st.markdown("- 8–24h: Teilsatzpauschale")
-    st.markdown("- <8h: Keine Verpflegungspauschale")
+# Excel-Export
+if st.session_state["reisen"]:
+    if st.button("Alle Reisen als Excel exportieren"):
+        excel_buffer = BytesIO()
+        df_export = pd.DataFrame(st.session_state["reisen"])
+        with pd.ExcelWriter(excel_buffer, engine="xlsxwriter") as writer:
+            df_export.to_excel(writer, index=False, sheet_name="Reisen")
+        st.download_button("Download Excel-Datei", data=excel_buffer.getvalue(),
+                           file_name="Reisekostenabrechnung_Oesterreich.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+st.markdown("---")
+st.caption("Hinweis: Diese Anwendung orientiert sich an den aktuellen steuerlichen Vorgaben für Reisekosten in Österreich (Stand 2024). Für verbindliche Auskünfte bitte immer die offiziellen WKO/BMF-Richtlinien konsultieren.")
