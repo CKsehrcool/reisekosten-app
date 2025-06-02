@@ -76,3 +76,50 @@ if submitted:
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         df.to_excel(writer, index=False)
     st.download_button("📥 Excel Export", data=buffer.getvalue(), file_name="Reisekostenabrechnung.xlsx")
+
+
+    # Belegverwaltung
+    st.subheader("🧾 Zusätzliche Belege erfassen")
+    beleg_typ = st.selectbox("Belegtyp", ["Hotel", "Parkticket", "Bahnticket/Öffis", "Essenseinladung", "Sonstiges"])
+    beleg_betrag = st.number_input("Betrag in EUR", min_value=0.0, step=0.1, key="beleg")
+    beleg_bemerkung = st.text_input("Bemerkung", key="bemerkung")
+    if 'belege' not in st.session_state:
+        st.session_state.belege = []
+
+    if st.button("➕ Beleg hinzufügen"):
+        st.session_state.belege.append({
+            "Typ": beleg_typ,
+            "Betrag": beleg_betrag,
+            "Bemerkung": beleg_bemerkung
+        })
+
+    if st.session_state.belege:
+        st.subheader("📋 Erfasste Belege")
+        beleg_df = pd.DataFrame(st.session_state.belege)
+        st.dataframe(beleg_df)
+
+        beleg_summe = sum(b["Betrag"] for b in st.session_state.belege)
+        st.write(f"**Summe zusätzliche Belege:** {beleg_summe:.2f} EUR")
+
+        gesamt += beleg_summe
+
+        df["Belegsumme"] = beleg_summe
+        df["Gesamt inkl. Belege"] = gesamt
+
+    # Speicherung im Session State für Monatsübersicht
+    if 'abrechnungen' not in st.session_state:
+        st.session_state.abrechnungen = []
+
+    if st.button("💾 Abrechnung speichern"):
+        st.session_state.abrechnungen.append(df.iloc[0].to_dict())
+        st.success("Abrechnung gespeichert!")
+
+    if st.session_state.abrechnungen:
+        st.subheader("📆 Monatsübersicht")
+        monats_df = pd.DataFrame(st.session_state.abrechnungen)
+        st.dataframe(monats_df)
+
+        buffer_all = BytesIO()
+        with pd.ExcelWriter(buffer_all, engine="openpyxl") as writer:
+            monats_df.to_excel(writer, index=False, sheet_name="Monatsübersicht")
+        st.download_button("📥 Monatsübersicht als Excel", data=buffer_all.getvalue(), file_name="Monatsabrechnung.xlsx")
