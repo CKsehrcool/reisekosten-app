@@ -37,14 +37,21 @@ taggeld_saetze_ausland = {
 if "reisen" not in st.session_state:
     st.session_state["reisen"] = []
 
-def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausland=False, fruehstueck_hotel=False, fruehstueck_ext=False):
+def taggeld_berechnen(
+    abreise, rueckkehr,
+    mahlzeiten=None,
+    reiseziel=None,
+    ausland=False,
+    fruehstueck_hotel=False,
+    fruehstueck_ext=False
+):
     diff = rueckkehr - abreise
     stunden = diff.total_seconds() / 3600
 
-    # Grundsatz Inland
+    # Inland-Grundsatz
     taggeld_voll = 26.4
 
-    # Ausland: Satz laut Zielland
+    # Ausland-Satz abfragen
     if ausland and reiseziel in taggeld_saetze_ausland:
         taggeld_voll = taggeld_saetze_ausland[reiseziel]
     elif ausland:
@@ -59,7 +66,7 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
     elif stunden >= 3:
         taggeld = round((stunden // 1) * (taggeld_voll / 12), 2)
 
-    # Kürzung Inland: pro kostenlose Mahlzeit (Mittag/Abend/externes Frühstück) jeweils ×2/3
+    # Kürzung Inland (jede einzelne gratis Mahlzeit)
     if not ausland:
         if mahlzeiten:
             if mahlzeiten.get("Mittag", False):
@@ -69,95 +76,115 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
         if fruehstueck_ext:
             taggeld *= 2/3
 
-    # Kürzung Ausland: nur wenn sowohl Mittag als auch Abend kostenlos
+    # Kürzung Ausland (nur, wenn beide gratis Mahlzeiten)
     if ausland:
         if mahlzeiten and mahlzeiten.get("Mittag", False) and mahlzeiten.get("Abend", False):
             taggeld *= 1/3
-        # Frühstück im Ausland hat keine Kürzung laut AK, externe Frühstückskürzung entfällt hier
+        # Frühstück im Ausland: keine Kürzung laut AK
 
     return round(taggeld, 2)
 
 def km_geld(km):
     return round(km * 0.5, 2)
 
-def reisekosten_formular(index=None):
-    form_key = f"reise_{index if index is not None else 'neu'}"
+def reisekosten_formular(reiseart, reiseziel):
+    """
+    Erzeugt das Formular für eine einzelne Reise.
+    Erwartet reiseart = "Inland" oder "Ausland",
+    bei Ausland muss reiseziel einer der Keys in taggeld_saetze_ausland sein.
+    """
+    form_key = f"reise_form_{len(st.session_state['reisen'])}"
     with st.form(key=form_key):
-        cols = st.columns(3)
-        mitarbeiter = cols[0].selectbox("Mitarbeiter", mitarbeiter_liste, key=f"mitarbeiter_{index}")
-        projekt = cols[1].text_input("Projekt / Kostenstelle", key=f"projekt_{index}")
-        reiseart = cols[2].selectbox("Reiseart", ["Inland", "Ausland"], key=f"reiseart_{index}")
-        startort = st.text_input("Startort", key=f"startort_{index}")
-        zielort = st.text_input("Zielort", key=f"zielort_{index}")
-        stops = st.text_area("Zwischenstopps (optional, jeweils neue Zeile)", key=f"stops_{index}")
+        cols = st.columns(2)
+        mitarbeiter = cols[0].selectbox("Mitarbeiter", mitarbeiter_liste, key=f"mitarbeiter_{form_key}")
+        projekt = cols[1].text_input("Projekt / Kostenstelle", key=f"projekt_{form_key}")
 
-        auslandsziel = None
-        if reiseart == "Ausland":
-            auslandsziel = st.selectbox(
-                "Zielland",
-                list(taggeld_saetze_ausland.keys()),
-                index=0, key=f"auslandsziel_{index}"
-            )
+        startort = st.text_input("Startort", key=f"startort_{form_key}")
+        zielort = st.text_input("Zielort", key=f"zielort_{form_key}")
+        stops = st.text_area("Zwischenstopps (optional, jeweils neue Zeile)", key=f"stops_{form_key}")
 
         col1, col2 = st.columns(2)
-        abfahrt_datum = col1.date_input("Abfahrt (Datum)", value=date.today(), key=f"abfahrt_datum_{index}")
-        abfahrt_zeit = col1.time_input("Abfahrt (Uhrzeit)", value=time(8, 0), key=f"abfahrt_zeit_{index}")
-        rueckkehr_datum = col2.date_input("Rückkehr (Datum)", value=date.today(), key=f"rueckkehr_datum_{index}")
-        rueckkehr_zeit = col2.time_input("Rückkehr (Uhrzeit)", value=time(17, 0), key=f"rueckkehr_zeit_{index}")
+        abfahrt_datum = col1.date_input(
+            "Abfahrt (Datum)", value=date.today(), key=f"abfahrt_datum_{form_key}"
+        )
+        abfahrt_zeit = col1.time_input(
+            "Abfahrt (Uhrzeit)", value=time(8, 0), key=f"abfahrt_zeit_{form_key}"
+        )
+        rueckkehr_datum = col2.date_input(
+            "Rückkehr (Datum)", value=date.today(), key=f"rueckkehr_datum_{form_key}"
+        )
+        rueckkehr_zeit = col2.time_input(
+            "Rückkehr (Uhrzeit)", value=time(17, 0), key=f"rueckkehr_zeit_{form_key}"
+        )
 
         abfahrt_dt = datetime.combine(abfahrt_datum, abfahrt_zeit)
         rueckkehr_dt = datetime.combine(rueckkehr_datum, rueckkehr_zeit)
 
         transportmittel = st.multiselect(
-            "Transportmittel", ["PKW (privat)", "Bahn", "Flug", "Mietwagen", "Öffis", "Taxi", "Fahrrad"], key=f"tm_{index}"
+            "Transportmittel",
+            ["PKW (privat)", "Bahn", "Flug", "Mietwagen", "Öffis", "Taxi", "Fahrrad"],
+            key=f"tm_{form_key}"
         )
-        km_anzahl = st.number_input("Gefahrene Kilometer (nur für PKW privat, sonst 0)", min_value=0, max_value=2000, value=0, key=f"km_{index}")
+        km_anzahl = st.number_input(
+            "Gefahrene Kilometer (nur für PKW privat, sonst 0)",
+            min_value=0, max_value=2000, value=0, key=f"km_{form_key}"
+        )
 
-        with st.expander("Mahlzeiten während der Reise (für Kürzung Taggeld):"):
+        with st.expander("Mahlzeiten (für Kürzung Taggeld)"):
             mahlzeiten = {
-                "Mittag": st.checkbox("Kostenloses Mittagessen erhalten?", key=f"mittag_{index}"),
-                "Abend": st.checkbox("Kostenloses Abendessen erhalten?", key=f"abend_{index}")
+                "Mittag": st.checkbox("Kostenloses Mittagessen erhalten?", key=f"mittag_{form_key}"),
+                "Abend": st.checkbox("Kostenloses Abendessen erhalten?", key=f"abend_{form_key}")
             }
-            fruehstueck_hotel = st.checkbox("Frühstück war im Hotelpreis inkludiert", key=f"fruehstueck_hotel_{index}")
-            fruehstueck_ext = st.checkbox("Kostenloses Frühstück außerhalb des Hotels erhalten", key=f"fruehstueck_ext_{index}")
+            fruehstueck_hotel = st.checkbox(
+                "Frühstück war im Hotelpreis inkludiert", key=f"fruehstueck_hotel_{form_key}"
+            )
+            fruehstueck_ext = st.checkbox(
+                "Kostenloses Frühstück außerhalb des Hotels erhalten", key=f"fruehstueck_ext_{form_key}"
+            )
 
-        pauschale_naechtigung = st.checkbox("Nur Pauschale für Nächtigung (15 €/Nacht)?", value=True, key=f"pauschale_naechtigung_{index}")
+        pauschale_naechtigung = st.checkbox(
+            "Nur Pauschale für Nächtigung (15 €/Nacht)?", value=True, key=f"pauschale_naechtigung_{form_key}"
+        )
 
         beleg_uploads = {}
         beleg_betraege = {}
-        with st.expander("Belege und Einzelbeträge erfassen"):
+        with st.expander("Belege & Einzelbeträge erfassen"):
             for belegart, beschreibung in belegarten:
                 col_upload, col_betrag = st.columns([2, 1])
                 beleg_uploads[belegart] = col_upload.file_uploader(
                     f"{belegart}-Beleg (PDF/JPG) – {beschreibung}",
                     type=["pdf", "jpg", "jpeg", "png"],
-                    key=f"beleg_{belegart}_{index}"
+                    key=f"beleg_{belegart}_{form_key}"
                 )
                 if belegart == "Hotel":
                     if pauschale_naechtigung:
+                        # Pauschalbetrag vorbefüllt und gesperrt
                         beleg_betraege[belegart] = 15.0
                         col_betrag.number_input(
                             "Hotelkosten (€) [nur bei tatsächlicher Rechnung editierbar]",
-                            min_value=0.0, step=1.0, value=15.0, disabled=True, key=f"betrag_{belegart}_{index}"
+                            min_value=0.0, step=1.0, value=15.0,
+                            disabled=True, key=f"betrag_{belegart}_{form_key}"
                         )
                     else:
+                        # Eingabe tatsächlicher Hotelkosten
                         beleg_betraege[belegart] = col_betrag.number_input(
-                            "Hotelkosten (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{index}"
+                            "Hotelkosten (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{form_key}"
                         )
                 else:
                     beleg_betraege[belegart] = col_betrag.number_input(
-                        f"{belegart} (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{index}"
+                        f"{belegart} (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{form_key}"
                     )
 
-        bemerkung = st.text_area("Bemerkungen (optional)", key=f"bemerk_{index}")
+        bemerkung = st.text_area("Bemerkungen (optional)", key=f"bemerk_{form_key}")
         submit = st.form_submit_button("Reise speichern")
+
         if submit:
             st.success("Reise gespeichert.")
             export_data = {
                 "Mitarbeiter": mitarbeiter,
                 "Projekt": projekt,
                 "Reiseart": reiseart,
-                "Zielland": auslandsziel if auslandsziel else "",
+                "Zielland": reiseziel if ausland else "",
                 "Startort": startort,
                 "Zielort": zielort,
                 "Zwischenstopps": stops,
@@ -166,9 +193,8 @@ def reisekosten_formular(index=None):
                 "Transportmittel": ", ".join(transportmittel),
                 "Kilometer": km_anzahl,
                 "Taggeld": taggeld_berechnen(
-                    abfahrt_dt, rueckkehr_dt, mahlzeiten,
-                    auslandsziel, reiseart == "Ausland",
-                    fruehstueck_hotel, fruehstueck_ext
+                    abfahrt_dt, rueckkehr_dt,
+                    mahlzeiten, reiseziel, ausland, fruehstueck_hotel, fruehstueck_ext
                 ),
                 "Kilometergeld": km_geld(km_anzahl),
                 "Bemerkung": bemerkung
@@ -184,12 +210,40 @@ def reisekosten_formular(index=None):
                 export_data["Taggeld"] + export_data["Kilometergeld"] + summe_belege
             )
             return export_data
+
     return None
 
+# -----------------------------
+# HIER wählen wir REISEART & ZIELLAND, bevor das Formular geladen wird
+# -----------------------------
+
 st.header("Neue Reise erfassen")
-reise = reisekosten_formular()
-if reise:
-    st.session_state["reisen"].append(reise)
+
+# 1. Reisart wählen
+reiseart = st.selectbox("Reiseart", ["Inland", "Ausland"], key="reiseart_auswahl")
+
+# 2. Falls Ausland gewählt, sofort Zielland-Selectbox anzeigen
+ausland = (reiseart == "Ausland")
+reiseziel = ""
+if ausland:
+    reiseziel = st.selectbox(
+        "Zielland",
+        list(taggeld_saetze_ausland.keys()),
+        index=0,
+        key="auslandsziel_auswahl"
+    )
+
+# 3. Formular aufrufen – reiseart und reiseziel werden übergeben
+if st.button("Formular anzeigen"):
+    # Formular erst anzeigen, wenn Button gedrückt wird.
+    # So bleibt die dynamische Auswahl bestehen.
+    reise = reisekosten_formular(reiseart, reiseziel)
+    if reise:
+        st.session_state["reisen"].append(reise)
+
+# -----------------------------
+# Reisestapel-Übersicht & Export
+# -----------------------------
 
 st.header("Reiseübersicht")
 if st.session_state["reisen"]:
@@ -199,13 +253,11 @@ if st.session_state["reisen"]:
         "Startort", "Zielort", "Abfahrt", "Rückkehr",
         "Taggeld", "Kilometergeld"
     ] + [f"{b[0]}_Betrag" for b in belegarten] + ["Gesamtkosten"]
+
     st.dataframe(df[uebersicht_cols])
     st.markdown(f"**Anzahl Reisen:** {len(df)}")
     st.markdown(f"**Gesamtkosten (alle Reisen):** € {round(df['Gesamtkosten'].sum(), 2)}")
-else:
-    st.info("Noch keine Reisen erfasst.")
 
-if st.session_state["reisen"]:
     if st.button("Alle Reisen als Excel exportieren"):
         excel_buffer = BytesIO()
         df_export = pd.DataFrame(st.session_state["reisen"])
@@ -216,6 +268,8 @@ if st.session_state["reisen"]:
             file_name="Reisekostenabrechnung_Oesterreich.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+else:
+    st.info("Noch keine Reisen erfasst.")
 
 st.markdown("---")
 st.caption(
