@@ -50,18 +50,14 @@ with st.expander("🔹 Reisedaten"):
     zwischenstopps = st.text_area("🛑 Zwischenstopps")
 
 ziel = st.selectbox("Reiseziel", ["Inland"] + list(AUSLANDS_DIETEN.keys()))
-with st.form("reise_formular"):
-    start_datum = st.date_input("Startdatum", value=datetime.now().date())
-    start_zeit = st.time_input("Startzeit", value=datetime.now().time())
-    ende_datum = st.date_input("Enddatum", value=datetime.now().date())
-    ende_zeit = st.time_input("Endzeit", value=datetime.now().time())
+start_datum = st.date_input("Startdatum", value=datetime.now().date())
+start_zeit = st.time_input("Startzeit", value=datetime.now().time())
+start = datetime.combine(start_datum, start_zeit)
+ende_datum = st.date_input("Enddatum", value=datetime.now().date())
+ende_zeit = st.time_input("Endzeit", value=datetime.now().time())
+ende = datetime.combine(ende_datum, ende_zeit)
 
-    submitted = st.form_submit_button("Berechnung starten")
-
-if submitted:
-    start = datetime.combine(start_datum, start_zeit)
-    ende = datetime.combine(ende_datum, ende_zeit)
-
+dauer = (ende - start).total_seconds() / 3600
 km = st.number_input("Gefahrene Kilometer", min_value=0.0)
 mitfahrer = st.slider("Mitfahreranzahl", 0, 4)
 naechte = st.number_input("Nächtigungen ohne Beleg", min_value=0)
