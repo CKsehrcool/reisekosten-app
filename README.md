@@ -1,3 +1,3 @@
-# Österreich Reisekostenrechner
+# Reisekostenrechner mit Monatsübersicht
 
-Korrigierte Version mit gültigem Excel-Export und Zeitangaben.
+Speichert mehrere Reisen und exportiert eine komplette Monatsabrechnung als Excel.

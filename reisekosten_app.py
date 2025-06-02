@@ -3,6 +3,8 @@ import streamlit as st
 from datetime import datetime
 from io import BytesIO
 
+st.set_page_config(page_title="Reisekostenrechner AT", layout="centered")
+
 AUSLANDS_DIETEN = {
     "Deutschland": 40.0,
     "Schweiz": 58.0,
@@ -39,7 +41,11 @@ def berechne_kilometergeld(km, mitfahrer=0):
     zuschlag = min(mitfahrer, 4) * MITFAHRER_ZUSCHLAG
     return km * (KILOMETERGELD + zuschlag)
 
-st.title("🇦🇹 Österreich Reisekostenrechner")
+# SessionState für Datenspeicherung
+if "abrechnungen" not in st.session_state:
+    st.session_state.abrechnungen = []
+
+st.title("🇦🇹 Reisekostenrechner (Monatsübersicht)")
 
 zielort = st.selectbox("Reiseziel", ["Inland"] + list(AUSLANDS_DIETEN.keys()))
 start_datum = st.date_input("Startdatum", value=datetime.now().date())
@@ -55,43 +61,45 @@ mitfahrer = st.slider("Anzahl Mitfahrer", 0, 4)
 naechte = st.number_input("Nächtigungen (ohne Beleg)", min_value=0, step=1)
 mahlzeiten = st.slider("Anzahl kostenloser Mahlzeiten (Mittag/Abend)", 0, 2)
 
-dauer = (ende - start).total_seconds() / 3600
+if st.button("➕ Abrechnung hinzufügen"):
+    dauer = (ende - start).total_seconds() / 3600
+    if zielort == "Inland":
+        tagesgeld = berechne_tagesgeld_inland(dauer, mahlzeiten)
+    else:
+        tagesgeld = berechne_tagesgeld_ausland(zielort, dauer, mahlzeiten)
+    km_geld = berechne_kilometergeld(km, mitfahrer)
+    naechtigung = naechte * NAECHTIGUNG_PAUSCHALE
+    gesamt = round(tagesgeld + km_geld + naechtigung, 2)
 
-if zielort == "Inland":
-    tagesgeld = berechne_tagesgeld_inland(dauer, mahlzeiten)
-else:
-    tagesgeld = berechne_tagesgeld_ausland(zielort, dauer, mahlzeiten)
+    eintrag = {
+        "Reiseziel": zielort,
+        "Start": start,
+        "Ende": ende,
+        "Dauer (h)": round(dauer, 2),
+        "Tagesgeld (€)": round(tagesgeld, 2),
+        "Kilometergeld (€)": round(km_geld, 2),
+        "Nächtigungsgeld (€)": round(naechtigung, 2),
+        "Gesamt (€)": gesamt
+    }
+    st.session_state.abrechnungen.append(eintrag)
+    st.success("Abrechnung gespeichert.")
 
-km_geld = berechne_kilometergeld(km, mitfahrer)
-naechtigung = naechte * NAECHTIGUNG_PAUSCHALE
-gesamt = round(tagesgeld + km_geld + naechtigung, 2)
+if st.session_state.abrechnungen:
+    df = pd.DataFrame(st.session_state.abrechnungen)
+    st.subheader("📊 Monatsübersicht")
+    st.dataframe(df, use_container_width=True)
 
-st.subheader("🧾 Abrechnungsergebnis")
-st.write(f"**Tagesgeld:** {tagesgeld:.2f} €")
-st.write(f"**Kilometergeld:** {km_geld:.2f} €")
-st.write(f"**Nächtigungsgeld:** {naechtigung:.2f} €")
-st.write(f"**Gesamt:** {gesamt:.2f} €")
+    gesamtbetrag = df["Gesamt (€)"].sum()
+    st.write(f"**Gesamtkosten für alle Reisen:** {gesamtbetrag:.2f} €")
 
-abrechnung = pd.DataFrame([{
-    "Reiseziel": zielort,
-    "Start": start,
-    "Ende": ende,
-    "Dauer (h)": round(dauer, 2),
-    "Tagesgeld (€)": round(tagesgeld, 2),
-    "Kilometergeld (€)": round(km_geld, 2),
-    "Nächtigungsgeld (€)": round(naechtigung, 2),
-    "Gesamt (€)": gesamt
-}])
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
+    excel_data = output.getvalue()
 
-# Excel-Datei im Speicher erzeugen
-output = BytesIO()
-with pd.ExcelWriter(output, engine='openpyxl') as writer:
-    abrechnung.to_excel(writer, index=False)
-excel_data = output.getvalue()
-
-st.download_button(
-    label="📥 Excel Export herunterladen",
-    data=excel_data,
-    file_name="reisekosten_abrechnung.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+    st.download_button(
+        label="📥 Monatsabrechnung als Excel",
+        data=excel_data,
+        file_name="monatsabrechnung.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
