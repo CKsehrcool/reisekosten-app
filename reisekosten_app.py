@@ -123,7 +123,6 @@ if not df.empty:
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
         df_monat.to_excel(writer, index=False, sheet_name="Reisen")
-        writer.save()
     st.download_button("Excel Export herunterladen", data=buffer.getvalue(), file_name=f"Reisen_{monat}.xlsx")
 else:
     st.info("Noch keine Reisen erfasst.")
