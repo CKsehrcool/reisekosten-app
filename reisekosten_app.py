@@ -61,6 +61,7 @@ with st.form("reise_formular"):
 if submitted:
     start = datetime.combine(start_datum, start_zeit)
     ende = datetime.combine(ende_datum, ende_zeit)
+    dauer = (ende - start).total_seconds() / 3600
 
 dauer = (ende - start).total_seconds() / 3600
 km = st.number_input("Gefahrene Kilometer", min_value=0.0)
