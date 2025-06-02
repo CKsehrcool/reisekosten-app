@@ -1,3 +1,3 @@
-# Reisekostenrechner inkl. Öffis
+# Reisekosten Österreich
 
-Belegerfassung erweitert um Bahn-/Öffitickets.
+Mit korrekter Frühstückskürzung und vollständigen Metadaten für Mitarbeiter, Projekt und Reiseroute.
