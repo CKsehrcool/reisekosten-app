@@ -41,8 +41,16 @@ def berechne_kilometergeld(km, mitfahrer=0):
 st.title("🇦🇹 Österreich Reisekostenrechner")
 
 zielort = st.selectbox("Reiseziel", ["Inland"] + list(AUSLANDS_DIETEN.keys()))
-start = st.datetime_input("Startzeitpunkt", value=datetime.now())
-ende = st.datetime_input("Endzeitpunkt", value=datetime.now())
+
+# Korrigierte Eingabe: Datum + Uhrzeit getrennt
+start_datum = st.date_input("Startdatum", value=datetime.now().date())
+start_zeit = st.time_input("Startzeit", value=datetime.now().time())
+start = datetime.combine(start_datum, start_zeit)
+
+ende_datum = st.date_input("Enddatum", value=datetime.now().date())
+ende_zeit = st.time_input("Endzeit", value=datetime.now().time())
+ende = datetime.combine(ende_datum, ende_zeit)
+
 km = st.number_input("Gefahrene Kilometer (eigener PKW)", min_value=0.0)
 mitfahrer = st.slider("Anzahl Mitfahrer", 0, 4)
 naechte = st.number_input("Nächtigungen (ohne Beleg)", min_value=0, step=1)
