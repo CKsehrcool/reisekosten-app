@@ -15,8 +15,10 @@ with st.form("eingabe"):
     zwischenstopps = st.text_area("Zwischenstopps (optional)")
     zielort = st.text_input("Zielort")
 
-    start = st.datetime_input("Startzeitpunkt", value=datetime.now() - timedelta(hours=8))
-    ende = st.datetime_input("Endzeitpunkt", value=datetime.now())
+    datum_start = st.date_input("Startdatum", value=datetime.now().date())
+    uhrzeit_start = st.time_input("Startzeit", value=datetime.now().time().replace(second=0, microsecond=0))
+    datum_ende = st.date_input("Enddatum", value=datetime.now().date())
+    uhrzeit_ende = st.time_input("Endzeit", value=datetime.now().time().replace(second=0, microsecond=0))
 
     km = st.number_input("Gefahrene Kilometer (eigener PKW)", min_value=0.0, step=0.1)
     mitfahrer = st.slider("Anzahl Mitfahrer", 0, 4)
@@ -28,11 +30,12 @@ with st.form("eingabe"):
     submitted = st.form_submit_button("Berechnen")
 
 if submitted:
+    start = datetime.combine(datum_start, uhrzeit_start)
+    ende = datetime.combine(datum_ende, uhrzeit_ende)
+
     dauer = ende - start
     stunden = dauer.total_seconds() / 3600
-    tage = dauer.days + (1 if stunden >= 24 else 0)
 
-    # Inlandspauschalen
     if stunden < 3:
         tagesgeld = 0.0
     elif 3 <= stunden < 12:
@@ -40,7 +43,6 @@ if submitted:
     else:
         tagesgeld = 30.0
 
-    # Kürzungen
     kürzung = 0.0
     if frühstück:
         kürzung += 4.50
@@ -50,9 +52,7 @@ if submitted:
         kürzung += 7.50
 
     netto_tagesgeld = max(0.0, tagesgeld - kürzung)
-
     km_geld = round(km * 0.5 + km * mitfahrer * 0.15, 2)
-
     gesamt = round(netto_tagesgeld + km_geld, 2)
 
     df = pd.DataFrame([{
