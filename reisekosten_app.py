@@ -21,7 +21,7 @@ MITFAHRER_ZUSCHLAG = 0.05
 
 def berechne_tagesgeld_inland(stunden, mahlzeiten, fruehstueck):
     pauschale = min(INLAND_MAX_TAGEGELD, stunden * INLAND_PAUSCHALE_PRO_STUNDE)
-    abzug = mahlzeiten * 11.55  # Mittag/Abend
+    abzug = mahlzeiten * 11.55
     if fruehstueck:
         abzug += FRUEHSTUECK_INLAND
     return max(0, pauschale - abzug)
@@ -48,14 +48,15 @@ def berechne_kilometergeld(km, mitfahrer=0):
 if "abrechnungen" not in st.session_state:
     st.session_state.abrechnungen = []
 
-st.title("🇦🇹 Reisekostenabrechnung – Österreich")
+st.title("🇦🇹 Reisekostenabrechnung Österreich")
 
-# Meta-Daten
-name = st.text_input("Name des Mitarbeiters")
-projekt = st.text_input("Projekt")
-abfahrt = st.text_input("Abfahrtsort")
-zielort_text = st.text_input("Zielort")
-zwischenstopps = st.text_area("Zwischenstopps (optional, Komma getrennt)")
+# Eingabemaske – Metadaten
+with st.expander("🔹 Angaben zur Person und Reise"):
+    name = st.text_input("👤 Name des Mitarbeiters")
+    projekt = st.text_input("📁 Projektbezeichnung")
+    abfahrt = st.text_input("🧭 Abfahrtsort / Startstation")
+    zielort_text = st.text_input("🏁 Zielort")
+    zwischenstopps = st.text_area("🛑 Zwischenstopps (Komma-getrennt)")
 
 # Reisedetails
 ziel = st.selectbox("Reiseziel (Inland oder Ausland)", ["Inland"] + list(AUSLANDS_DIETEN.keys()))
@@ -71,16 +72,16 @@ dauer = (ende - start).total_seconds() / 3600
 km = st.number_input("Gefahrene Kilometer (eigener PKW)", min_value=0.0)
 mitfahrer = st.slider("Anzahl Mitfahrer", 0, 4)
 naechte = st.number_input("Nächtigungen ohne Beleg", min_value=0)
-fruehstueck = st.checkbox("Frühstück enthalten")
+fruehstueck = st.checkbox("🥐 Kostenloses Frühstück erhalten?")
 mahlzeiten = st.slider("Kostenlose Mittag-/Abendessen", 0, 2)
 
-# Belege
-st.subheader("🧾 Belege")
-parken = st.number_input("Parkticket (€)", min_value=0.0)
-hotel = st.number_input("Hotelübernachtung (Beleg) (€)", min_value=0.0)
-essen = st.number_input("Einladungen / Bewirtung (€)", min_value=0.0)
-sonstiges = st.number_input("Sonstiges (€)", min_value=0.0)
-bahn = st.number_input("Bahn-/Öffitickets (€)", min_value=0.0)
+# Belegeingabe
+with st.expander("🧾 Zusätzliche Belege"):
+    parken = st.number_input("Parkticket (€)", min_value=0.0)
+    hotel = st.number_input("Hotelübernachtung (Beleg) (€)", min_value=0.0)
+    essen = st.number_input("Einladungen / Bewirtung (€)", min_value=0.0)
+    sonstiges = st.number_input("Sonstige Belege (€)", min_value=0.0)
+    bahn = st.number_input("Bahn-/Öffitickets (€)", min_value=0.0)
 
 if st.button("➕ Abrechnung speichern"):
     if ziel == "Inland":
@@ -126,4 +127,4 @@ if st.session_state.abrechnungen:
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False)
     st.download_button("📥 Gesamtabrechnung als Excel", data=output.getvalue(),
-                       file_name="abrechnung_at.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                       file_name="abrechnung_oesterreich.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

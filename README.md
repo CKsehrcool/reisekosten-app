@@ -1,3 +1,3 @@
-# Reisekosten Österreich
+# Reisekostenabrechnung Österreich
 
-Mit korrekter Frühstückskürzung und vollständigen Metadaten für Mitarbeiter, Projekt und Reiseroute.
+Mit vollständigen Eingabefeldern und korrekter Frühstückskürzung Inland/Ausland.
