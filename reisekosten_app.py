@@ -33,14 +33,37 @@ if 'current_reise' not in st.session_state:
 
 # Hilfsfunktionen
 def calculate_verpflegung(reise):
+    start_dt = datetime.combine(reise['startdatum'], reise['startzeit'])
+    end_dt = datetime.combine(reise['enddatum'], reise['endzeit'])
+    dauer_stunden = (end_dt - start_dt).total_seconds() / 3600
+    tage_gesamt = (reise['enddatum'] - reise['startdatum']).days + 1
+
     if reise['reiseart'] == 'Inland':
-        pauschale = INLAND_PAUSCHALE
+        pauschale_pro_tag = INLAND_PAUSCHALE
+        abzug = 0
         if reise.get('fruehstück'):
-            pauschale -= 4.50
+            abzug += 4.50
         if reise.get('mittagessen'):
-            pauschale -= 7.50
-        tage = (reise['enddatum'] - reise['startdatum']).days + 1
-        return pauschale * tage
+            abzug += 7.50
+        gesamt = tage_gesamt * (pauschale_pro_tag - abzug)
+        return max(0, round(gesamt, 2))
+
+    else:  # Ausland
+        land = reise.get('land', 'Andere')
+        vollsatz = AUSLAND_PAUSCHALEN.get(land, AUSLAND_PAUSCHALEN['Andere'])['voll']
+        teilsatz = AUSLAND_PAUSCHALEN.get(land, AUSLAND_PAUSCHALEN['Andere'])['teil']
+
+        if tage_gesamt == 1:
+            # Nur 1 Tag
+            return max(0, round(teilsatz, 2))
+        elif tage_gesamt == 2:
+            # 1 Anreise + 1 Abreise
+            return max(0, round(2 * teilsatz, 2))
+        else:
+            # Volle Tage dazwischen + An-/Abreise
+            volltage = tage_gesamt - 2
+            gesamt = volltage * vollsatz + 2 * teilsatz
+            return max(0, round(gesamt, 2))
     
     else:  # Ausland
         land = reise['land']
