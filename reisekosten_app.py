@@ -39,7 +39,8 @@ def calculate_verpflegung(reise):
             pauschale -= 4.50
         if reise.get('mittagessen'):
             pauschale -= 7.50
-        return pauschale * reise['tage']
+        tage = (reise['enddatum'] - reise['startdatum']).days + 1
+return pauschale * tage
     
     else:  # Ausland
         land = reise['land']
@@ -54,9 +55,10 @@ def calculate_verpflegung(reise):
         stunden_gesamt = (end_dt - start_dt).total_seconds() / 3600
         
         # Tageberechnung für Ausland
-        tage_voll = reise['tage'] - 1  # Volle Tage ohne An-/Abreisetag
+        tage = (reise['enddatum'] - reise['startdatum']).days + 1
+        tage_voll = tage - 1  # Volle Tage ohne An-/Abreisetag
         if stunden_gesamt > 24:
-            tage_voll = max(0, reise['tage'] - 2)  # Anreisetag und Abreisetag abziehen
+            tage_voll = max(0, tage - 2)  # Anreisetag und Abreisetag abziehen
             
         # Teiltagpauschale nur wenn mindestens 8 Stunden
         tage_teil = 1 if stunden_gesamt >= 8 else 0
