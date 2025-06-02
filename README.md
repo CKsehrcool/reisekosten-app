@@ -1,3 +1,3 @@
-# Reisekostenrechner mit Monatsübersicht
+# Reisekostenrechner inkl. Öffis
 
-Speichert mehrere Reisen und exportiert eine komplette Monatsabrechnung als Excel.
+Belegerfassung erweitert um Bahn-/Öffitickets.
