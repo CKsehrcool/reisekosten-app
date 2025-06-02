@@ -13,7 +13,7 @@ st.markdown(
 )
 
 # Vorauswahl: Mitarbeiter-Liste und Beleg-Arten
-mitarbeiter_liste = ["Max Mustermann", "Maria Beispiel", "Hans Huber", "Frei wählbar..."]
+mitarbeiter_liste = ["Franz Tramberger", "Maria Beispiel", "Hans Huber", "Frei wählbar..."]
 belegarten = [
     ("Hotel", "Tatsächliche Hotelrechnung (optional, sonst Pauschale)"),
     ("Mietwagen", "Mietwagenkosten"),
