@@ -13,12 +13,24 @@ INLAND_NACHT = 17.0
 KILOMETERGELD = 0.5
 KÜRZUNG_INLAND = {"frühstück": 4.5, "mittagessen": 7.5}
 
+
 AUSLAND_PAUSCHALEN = {
-    "Deutschland": {"voll": 63.20, "teil": 35.30},
-    "Schweiz": {"voll": 69.50, "teil": 36.80},
-    "Liechtenstein": {"voll": 69.50, "teil": 36.80},
-    "Italien": {"voll": 63.7, "teil": 35.80}
-    
+    "Deutschland": {"voll": 35.30, "nacht": 27.90},
+    "Deutschland (Grenzorte)": {"voll": 30.70, "nacht": 18.10},
+    "Frankreich": {"voll": 32.70, "nacht": 24.00},
+    "Frankreich (Paris/Straßburg)": {"voll": 35.80, "nacht": 32.70},
+    "Italien": {"voll": 35.80, "nacht": 27.90},
+    "Italien (Rom/Mailand)": {"voll": 40.60, "nacht": 36.40},
+    "Schweiz": {"voll": 36.80, "nacht": 32.70},
+    "Schweiz (Grenzorte)": {"voll": 30.70, "nacht": 18.10},
+    "Spanien": {"voll": 34.20, "nacht": 30.50},
+    "Tschechien": {"voll": 31.00, "nacht": 24.40},
+    "Ungarn": {"voll": 26.60, "nacht": 26.60},
+    "USA": {"voll": 52.30, "nacht": 42.90},
+    "USA (New York/Washington)": {"voll": 65.40, "nacht": 51.00},
+    "Andere": {"voll": 30.00, "nacht": 25.00}
+}
+
 }
 AUSLAND_KÜRZUNG = {"frühstück": 0.2, "mittagessen": 0.4}
 
