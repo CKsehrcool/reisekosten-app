@@ -68,6 +68,26 @@ def calculate_verpflegung(reise):
         gesamt = tage_gesamt * (pauschale_pro_tag - abzug)
         return max(0, round(gesamt, 2))
 
+    # Ausland
+    land = reise.get('land', 'Andere')
+    vollsatz = AUSLAND_PAUSCHALEN.get(land, AUSLAND_PAUSCHALEN['Andere'])['voll']
+    teilsatz = AUSLAND_PAUSCHALEN.get(land, AUSLAND_PAUSCHALEN['Andere'])['teil']
+
+    if tage_gesamt == 1:
+        return max(0, round(teilsatz, 2))
+    elif tage_gesamt == 2:
+        return max(0, round(2 * teilsatz, 2))
+    else:
+        volltage = tage_gesamt - 2
+        gesamt = volltage * vollsatz + 2 * teilsatz
+        return max(0, round(gesamt, 2))
+        if reise.get('fruehstück'):
+            abzug += 4.50
+        if reise.get('mittagessen'):
+            abzug += 7.50
+        gesamt = tage_gesamt * (pauschale_pro_tag - abzug)
+        return max(0, round(gesamt, 2))
+
     else:  # Ausland
         land = reise.get('land', 'Andere')
         vollsatz = AUSLAND_PAUSCHALEN.get(land, AUSLAND_PAUSCHALEN['Andere'])['voll']
@@ -215,7 +235,6 @@ with st.expander("Neue Reise erfassen", expanded=True):
 
 # Belegmanagement
 st.subheader("Belege hochladen")
-uploaded_files = st.file_uploader("Belege für diese Reise (PDF, JPG, PNG)", 
                                  type=["pdf", "jpg", "png", "jpeg"],
                                  accept_multiple_files=True)
 
