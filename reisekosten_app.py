@@ -28,3 +28,37 @@ if end_datetime < start_datetime:
 dauer = (end_datetime - start_datetime).total_seconds() / 3600
 
 st.write(f"Dauer der Reise: {dauer:.2f} Stunden")
+
+# --- Inlandspauschale berechnen laut Regelwerk (gültig ab 2025) ---
+verpflegungspauschale = 0.0
+frühstück = 4.50
+mittag = 7.50
+abend = 7.50
+
+if dauer >= 24:
+    verpflegungspauschale = 30.00
+elif dauer >= 8:
+    verpflegungspauschale = 30.00
+else:
+    verpflegungspauschale = 0.00
+
+# Kürzungen abfragen
+kuerzung_fr = st.checkbox("Frühstück gestellt (−4,50 €)", value=False)
+kuerzung_mi = st.checkbox("Mittagessen gestellt (−7,50 €)", value=False)
+kuerzung_ab = st.checkbox("Abendessen gestellt (−7,50 €)", value=False)
+
+kuerzung_summe = 0.0
+if kuerzung_fr:
+    kuerzung_summe += frühstück
+if kuerzung_mi:
+    kuerzung_summe += mittag
+if kuerzung_ab:
+    kuerzung_summe += abend
+
+betrag_nach_kuerzung = max(0, verpflegungspauschale - kuerzung_summe)
+
+# Ergebnis anzeigen
+st.subheader("Berechnetes Taggeld (Inland, brutto)")
+st.write(f"Anspruch vor Kürzungen: **{verpflegungspauschale:.2f} €**")
+st.write(f"Kürzungen: **−{kuerzung_summe:.2f} €**")
+st.success(f"➡️ Erstattungsbetrag: **{betrag_nach_kuerzung:.2f} €**")
