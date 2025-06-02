@@ -29,9 +29,7 @@ AUSLAND_PAUSCHALEN = {
     "USA": {"voll": 52.30, "nacht": 42.90},
     "USA (New York/Washington)": {"voll": 65.40, "nacht": 51.00},
     "Andere": {"voll": 30.00, "nacht": 25.00}
-}
 
-}
 AUSLAND_KÜRZUNG = {"frühstück": 0.2, "mittagessen": 0.4}
 
 if "reisen" not in st.session_state:
