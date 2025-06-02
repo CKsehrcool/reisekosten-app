@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 from datetime import datetime
+from io import BytesIO
 
 AUSLANDS_DIETEN = {
     "Deutschland": 40.0,
@@ -41,8 +42,6 @@ def berechne_kilometergeld(km, mitfahrer=0):
 st.title("🇦🇹 Österreich Reisekostenrechner")
 
 zielort = st.selectbox("Reiseziel", ["Inland"] + list(AUSLANDS_DIETEN.keys()))
-
-# Korrigierte Eingabe: Datum + Uhrzeit getrennt
 start_datum = st.date_input("Startdatum", value=datetime.now().date())
 start_zeit = st.time_input("Startzeit", value=datetime.now().time())
 start = datetime.combine(start_datum, start_zeit)
@@ -84,7 +83,11 @@ abrechnung = pd.DataFrame([{
     "Gesamt (€)": gesamt
 }])
 
-excel_data = abrechnung.to_excel(index=False, engine='openpyxl')
+# Excel-Datei im Speicher erzeugen
+output = BytesIO()
+with pd.ExcelWriter(output, engine='openpyxl') as writer:
+    abrechnung.to_excel(writer, index=False)
+excel_data = output.getvalue()
 
 st.download_button(
     label="📥 Excel Export herunterladen",

@@ -1,3 +1,3 @@
 # Österreich Reisekostenrechner
 
-Mit Streamlit erstellte Webanwendung zur Reisekostenabrechnung für Mitarbeiter:innen in Österreich.
+Korrigierte Version mit gültigem Excel-Export und Zeitangaben.
