@@ -26,13 +26,13 @@ belegarten = [
 
 # Taggeld-Sätze für ausgewählte Länder laut WKO (Stand 2024)
 taggeld_saetze_ausland = {
-    "Deutschland": 41.20,
-    "Schweiz": 61.00,
-    "Frankreich": 54.60,
-    "Italien": 45.40,
-    "Liechtenstein": 55.30,
-    "Tschechien": 35.30,
-    "Andere": 40.00  # Default für weitere Länder
+    "Deutschland": 35.30,
+    "Schweiz": 36.80,
+    "Frankreich": 32.70,
+    "Italien": 35.80,
+    "Liechtenstein": 30.70,
+    "Tschechien": 31.00,
+    "Andere": 30.00  # Default für weitere Länder
 }
 
 # Session-State initialisieren für gespeicherte Reisen
