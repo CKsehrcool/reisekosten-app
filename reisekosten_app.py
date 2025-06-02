@@ -31,7 +31,7 @@ taggeld_saetze_ausland = {
     "Italien": 45.40,
     "Liechtenstein": 55.30,
     "Tschechien": 35.30,
-    "Andere": 40.00,  # Default für weitere Länder
+    "Andere": 40.00  # Default für weitere Länder
 }
 
 if "reisen" not in st.session_state:
@@ -41,10 +41,10 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
     diff = rueckkehr - abreise
     stunden = diff.total_seconds() / 3600
 
-    # Inland/Standard
+    # Grundsatz Inland
     taggeld_voll = 26.4
 
-    # Ausland mit länderspezifischem Satz
+    # Ausland: Satz laut Zielland
     if ausland and reiseziel in taggeld_saetze_ausland:
         taggeld_voll = taggeld_saetze_ausland[reiseziel]
     elif ausland:
@@ -59,16 +59,22 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
     elif stunden >= 3:
         taggeld = round((stunden // 1) * (taggeld_voll / 12), 2)
 
-    # Kürzung bei kostenlosen Mahlzeiten (Mittag/Abend: 1/3 Kürzung pro Mahlzeit)
-    if mahlzeiten:
-        if mahlzeiten.get("Mittag", False):
+    # Kürzung Inland: pro kostenlose Mahlzeit (Mittag/Abend/externes Frühstück) jeweils ×2/3
+    if not ausland:
+        if mahlzeiten:
+            if mahlzeiten.get("Mittag", False):
+                taggeld *= 2/3
+            if mahlzeiten.get("Abend", False):
+                taggeld *= 2/3
+        if fruehstueck_ext:
             taggeld *= 2/3
-        if mahlzeiten.get("Abend", False):
-            taggeld *= 2/3
-    # Frühstück: Kürzung nur, wenn KOSTENLOS außerhalb Hotel
-    if fruehstueck_ext:
-        taggeld *= 2/3
-    # Frühstück im Hotelpreis inkludiert: keine Kürzung
+
+    # Kürzung Ausland: nur wenn sowohl Mittag als auch Abend kostenlos
+    if ausland:
+        if mahlzeiten and mahlzeiten.get("Mittag", False) and mahlzeiten.get("Abend", False):
+            taggeld *= 1/3
+        # Frühstück im Ausland hat keine Kürzung laut AK, externe Frühstückskürzung entfällt hier
+
     return round(taggeld, 2)
 
 def km_geld(km):
@@ -85,16 +91,13 @@ def reisekosten_formular(index=None):
         zielort = st.text_input("Zielort", key=f"zielort_{index}")
         stops = st.text_area("Zwischenstopps (optional, jeweils neue Zeile)", key=f"stops_{index}")
 
-        # Auslandsziel-Auswahl
         auslandsziel = None
         if reiseart == "Ausland":
             auslandsziel = st.selectbox(
-                "Zielland", 
+                "Zielland",
                 list(taggeld_saetze_ausland.keys()),
                 index=0, key=f"auslandsziel_{index}"
             )
-        else:
-            auslandsziel = None
 
         col1, col2 = st.columns(2)
         abfahrt_datum = col1.date_input("Abfahrt (Datum)", value=date.today(), key=f"abfahrt_datum_{index}")
@@ -113,35 +116,38 @@ def reisekosten_formular(index=None):
         with st.expander("Mahlzeiten während der Reise (für Kürzung Taggeld):"):
             mahlzeiten = {
                 "Mittag": st.checkbox("Kostenloses Mittagessen erhalten?", key=f"mittag_{index}"),
-                "Abend": st.checkbox("Kostenloses Abendessen erhalten?", key=f"abend_{index}"),
+                "Abend": st.checkbox("Kostenloses Abendessen erhalten?", key=f"abend_{index}")
             }
             fruehstueck_hotel = st.checkbox("Frühstück war im Hotelpreis inkludiert", key=f"fruehstueck_hotel_{index}")
             fruehstueck_ext = st.checkbox("Kostenloses Frühstück außerhalb des Hotels erhalten", key=f"fruehstueck_ext_{index}")
 
-        pauschale_naechtigung = st.checkbox("Nur Pauschale für Nächtigung (15€/Nacht)?", value=True, key=f"pauschale_naechtigung_{index}")
+        pauschale_naechtigung = st.checkbox("Nur Pauschale für Nächtigung (15 €/Nacht)?", value=True, key=f"pauschale_naechtigung_{index}")
 
         beleg_uploads = {}
         beleg_betraege = {}
         with st.expander("Belege und Einzelbeträge erfassen"):
             for belegart, beschreibung in belegarten:
-                col_upload, col_betrag = st.columns([2,1])
+                col_upload, col_betrag = st.columns([2, 1])
                 beleg_uploads[belegart] = col_upload.file_uploader(
-                    f"{belegart}-Beleg (PDF/JPG) – {beschreibung}", 
-                    type=["pdf", "jpg", "jpeg", "png"], 
+                    f"{belegart}-Beleg (PDF/JPG) – {beschreibung}",
+                    type=["pdf", "jpg", "jpeg", "png"],
                     key=f"beleg_{belegart}_{index}"
                 )
                 if belegart == "Hotel":
                     if pauschale_naechtigung:
-                        beleg_betraege[belegart] = 15
+                        beleg_betraege[belegart] = 15.0
                         col_betrag.number_input(
-                            "Hotelkosten (€) [nur bei tatsächlicher Rechnung editierbar]", 
-                            min_value=0.0, step=1.0, value=15.0, disabled=True, key=f"betrag_{belegart}_{index}")
+                            "Hotelkosten (€) [nur bei tatsächlicher Rechnung editierbar]",
+                            min_value=0.0, step=1.0, value=15.0, disabled=True, key=f"betrag_{belegart}_{index}"
+                        )
                     else:
                         beleg_betraege[belegart] = col_betrag.number_input(
-                            "Hotelkosten (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{index}")
+                            "Hotelkosten (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{index}"
+                        )
                 else:
                     beleg_betraege[belegart] = col_betrag.number_input(
-                        f"{belegart} (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{index}")
+                        f"{belegart} (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{index}"
+                    )
 
         bemerkung = st.text_area("Bemerkungen (optional)", key=f"bemerk_{index}")
         submit = st.form_submit_button("Reise speichern")
@@ -160,19 +166,23 @@ def reisekosten_formular(index=None):
                 "Transportmittel": ", ".join(transportmittel),
                 "Kilometer": km_anzahl,
                 "Taggeld": taggeld_berechnen(
-                    abfahrt_dt, rueckkehr_dt, mahlzeiten, 
+                    abfahrt_dt, rueckkehr_dt, mahlzeiten,
                     auslandsziel, reiseart == "Ausland",
                     fruehstueck_hotel, fruehstueck_ext
                 ),
                 "Kilometergeld": km_geld(km_anzahl),
-                "Bemerkung": bemerkung,
+                "Bemerkung": bemerkung
             }
             summe_belege = 0
             for belegart, _ in belegarten:
                 export_data[f"{belegart}_Betrag"] = beleg_betraege[belegart]
-                export_data[f"{belegart}_Beleg"] = beleg_uploads[belegart].name if beleg_uploads[belegart] else None
+                export_data[f"{belegart}_Beleg"] = (
+                    beleg_uploads[belegart].name if beleg_uploads[belegart] else ""
+                )
                 summe_belege += beleg_betraege[belegart]
-            export_data["Gesamtkosten"] = export_data["Taggeld"] + export_data["Kilometergeld"] + summe_belege
+            export_data["Gesamtkosten"] = (
+                export_data["Taggeld"] + export_data["Kilometergeld"] + summe_belege
+            )
             return export_data
     return None
 
@@ -185,7 +195,8 @@ st.header("Reiseübersicht")
 if st.session_state["reisen"]:
     df = pd.DataFrame(st.session_state["reisen"])
     uebersicht_cols = [
-        "Mitarbeiter", "Projekt", "Reiseart", "Zielland", "Startort", "Zielort", "Abfahrt", "Rückkehr",
+        "Mitarbeiter", "Projekt", "Reiseart", "Zielland",
+        "Startort", "Zielort", "Abfahrt", "Rückkehr",
         "Taggeld", "Kilometergeld"
     ] + [f"{b[0]}_Betrag" for b in belegarten] + ["Gesamtkosten"]
     st.dataframe(df[uebersicht_cols])
@@ -199,8 +210,16 @@ if st.session_state["reisen"]:
         excel_buffer = BytesIO()
         df_export = pd.DataFrame(st.session_state["reisen"])
         df_export.to_excel(excel_buffer, index=False, sheet_name="Reisen")
-        st.download_button("Download Excel-Datei", data=excel_buffer.getvalue(),
-                           file_name="Reisekostenabrechnung_Oesterreich.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button(
+            "Download Excel-Datei",
+            data=excel_buffer.getvalue(),
+            file_name="Reisekostenabrechnung_Oesterreich.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 st.markdown("---")
-st.caption("Hinweis: Diese Anwendung orientiert sich an den aktuellen steuerlichen Vorgaben für Reisekosten in Österreich (Stand 2024, Quelle: WKO). Für verbindliche Auskünfte bitte immer die offiziellen WKO/BMF-Richtlinien konsultieren.")
+st.caption(
+    "Hinweis: Diese Anwendung orientiert sich an den aktuellen steuerlichen Vorgaben für Reisekosten "
+    "in Österreich (Stand 2024, Quelle: WKO/Arbeiterkammer). Für verbindliche Auskünfte bitte immer die "
+    "offiziellen WKO/BMF-Richtlinien konsultieren."
+)
