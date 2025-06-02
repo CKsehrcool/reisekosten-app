@@ -234,9 +234,6 @@ with st.expander("Neue Reise erfassen", expanded=True):
     st.button("Reise speichern", on_click=save_reise, type="primary")
 
 # Belegmanagement
-st.subheader("Belege hochladen")
-                                 type=["pdf", "jpg", "png", "jpeg"],
-                                 accept_multiple_files=True)
 
 if uploaded_files:
     st.session_state.current_reise['belege'] = [file.name for file in uploaded_files]
