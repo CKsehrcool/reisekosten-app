@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date, time, timedelta
 from io import BytesIO
-from PIL import Image
+from PIL import Image as PILImage
+import xlsxwriter
 
 st.set_page_config(page_title="Reisekostenabrechnung Österreich", layout="wide")
 
@@ -181,9 +182,18 @@ if st.session_state["reisen"]:
                     for file in reise["Belege"]:
                         if file.type in ["image/jpeg", "image/png"]:
                             image_bytes = file.read()
-                            image_stream = BytesIO(image_bytes)
-                            worksheet.insert_image(row, 1, file.name, {'image_data': image_stream, 'x_scale': 0.5, 'y_scale': 0.5})
-                            row += 15
+                            try:
+                                PILImage.open(BytesIO(image_bytes)).verify()
+                                image_stream = BytesIO(image_bytes)
+                                worksheet.insert_image(row, 1, file.name, {
+                                    'image_data': image_stream,
+                                    'x_scale': 0.5,
+                                    'y_scale': 0.5
+                                })
+                                row += 15
+                            except Exception as e:
+                                worksheet.write(row, 1, f"Fehler beim Bild: {file.name} - {str(e)}")
+                                row += 1
                 else:
                     worksheet.write(row, 1, "Keine Bildbelege hochgeladen")
                     row += 2
@@ -199,3 +209,4 @@ else:
 
 st.markdown("---")
 st.caption("Hinweis: Diese Anwendung orientiert sich an den aktuellen steuerlichen Vorgaben für Reisekosten in Österreich (Stand 2024, Quelle: WKO/Arbeiterkammer). Für verbindliche Auskünfte bitte immer die offiziellen WKO/BMF-Richtlinien konsultieren.")
+
