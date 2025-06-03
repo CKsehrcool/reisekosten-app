@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date, time, timedelta
 from io import BytesIO
+import tempfile
+from PIL import Image
+import os
 
 st.set_page_config(page_title="Reisekostenabrechnung Österreich", layout="wide")
 
@@ -111,18 +114,9 @@ def reisekosten_formular(reiseart, reiseziel):
         with st.expander("Belege & Einzelbeträge erfassen"):
             for belegart, beschreibung in belegarten:
                 col_upload, col_betrag = st.columns([2, 1])
-                beleg_uploads[belegart] = col_upload.file_uploader(
-                    f"{belegart}-Beleg (PDF/JPG) – {beschreibung}",
-                    type=["pdf", "jpg", "jpeg", "png"],
-                    key=f"beleg_{belegart}_{form_key}"
-                )
-                if belegart == "Hotel":
-                    if pauschale_naechtigung:
-                        beleg_betraege[belegart] = col_betrag.number_input("Hotelkosten (€) [Pauschale]", min_value=0.0, step=1.0, value=15.0, key=f"betrag_{belegart}_{form_key}")
-                    else:
-                        beleg_betraege[belegart] = col_betrag.number_input("Hotelkosten (€) [bei tatsächlicher Rechnung]", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{form_key}")
-                else:
-                    beleg_betraege[belegart] = col_betrag.number_input(f"{belegart} (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{form_key}")
+                beleg_betraege[belegart] = col_betrag.number_input(f"{belegart} (€)", min_value=0.0, step=1.0, key=f"betrag_{belegart}_{form_key}")
+
+        sammelbelege = st.file_uploader("Sammelupload Belege (JPG/PNG, mehrere möglich)", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key=f"sammelbelege_{form_key}")
 
         bemerkung = st.text_area("Bemerkungen (optional)", key=f"bemerk_{form_key}")
         submit = st.form_submit_button("Reise speichern")
@@ -143,12 +137,12 @@ def reisekosten_formular(reiseart, reiseziel):
                 "Kilometer": km_anzahl,
                 "Taggeld": taggeld_berechnen(abfahrt_dt, rueckkehr_dt, mahlzeiten, reiseziel if reiseart == "Ausland" else None, ausland=(reiseart == "Ausland"), fruehstueck_hotel=fruehstueck_hotel, fruehstueck_ext=fruehstueck_ext),
                 "Kilometergeld": km_geld(km_anzahl),
-                "Bemerkung": bemerkung
+                "Bemerkung": bemerkung,
+                "Belege": sammelbelege
             }
             summe_belege = 0.0
             for belegart, _ in belegarten:
                 export_data[f"{belegart}_Betrag"] = beleg_betraege[belegart]
-                export_data[f"{belegart}_Beleg"] = (beleg_uploads[belegart].name if beleg_uploads[belegart] else "")
                 summe_belege += beleg_betraege[belegart]
             export_data["Gesamtkosten"] = export_data["Taggeld"] + export_data["Kilometergeld"] + summe_belege
             return export_data
@@ -169,19 +163,40 @@ if reise:
 
 st.header("Reiseübersicht")
 if st.session_state["reisen"]:
-    df = pd.DataFrame(st.session_state["reisen"])
+    df = pd.DataFrame([r for r in st.session_state["reisen"] if isinstance(r, dict)])
     uebersicht_cols = ["Mitarbeiter", "Projekt", "Reiseart", "Zielland", "Startort", "Zielort", "Abfahrt", "Rückkehr", "Taggeld", "Kilometergeld"] + [f"{b[0]}_Betrag" for b in belegarten] + ["Gesamtkosten"]
     st.dataframe(df[uebersicht_cols])
     st.markdown(f"**Anzahl Reisen:** {len(df)}")
     st.markdown(f"**Gesamtkosten (alle Reisen):** € {round(df['Gesamtkosten'].sum(), 2)}")
 
     if st.button("Alle Reisen als Excel exportieren"):
-        excel_buffer = BytesIO()
-        df_export = pd.DataFrame(st.session_state["reisen"])
-        df_export.to_excel(excel_buffer, index=False, sheet_name="Reisen")
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            df[uebersicht_cols].to_excel(writer, index=False, sheet_name="Reisen")
+            workbook = writer.book
+            worksheet = workbook.add_worksheet("Belege")
+            writer.sheets["Belege"] = worksheet
+            row = 0
+            for i, reise in enumerate(st.session_state["reisen"]):
+                worksheet.write(row, 0, f"Reise {i+1}: {reise['Mitarbeiter']} | {reise['Startort']} → {reise['Zielort']}")
+                row += 1
+                if reise.get("Belege"):
+                    for file in reise["Belege"]:
+                        if file.type in ["image/jpeg", "image/png"]:
+                            image_bytes = file.read()
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
+                                tmp_file.write(image_bytes)
+                                tmp_path = tmp_file.name
+                            worksheet.insert_image(row, 1, tmp_path, {'x_scale': 0.5, 'y_scale': 0.5})
+                            row += 15
+                            os.unlink(tmp_path)
+                else:
+                    worksheet.write(row, 1, "Keine Bildbelege hochgeladen")
+                    row += 2
+
         st.download_button(
             "Download Excel-Datei",
-            data=excel_buffer.getvalue(),
+            data=buffer.getvalue(),
             file_name="Reisekostenabrechnung_Oesterreich.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
@@ -190,4 +205,5 @@ else:
 
 st.markdown("---")
 st.caption("Hinweis: Diese Anwendung orientiert sich an den aktuellen steuerlichen Vorgaben für Reisekosten in Österreich (Stand 2024, Quelle: WKO/Arbeiterkammer). Für verbindliche Auskünfte bitte immer die offiziellen WKO/BMF-Richtlinien konsultieren.")
+
 
