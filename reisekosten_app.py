@@ -7,7 +7,7 @@ import xlsxwriter
 
 st.set_page_config(page_title="Reisekostenabrechnung Österreich", layout="wide")
 
-st.title("🇦🇹 Reisekostenabrechnung nach österreichischem Finanzrecht")
+st.title("🇦🇹 Reisekostenabrechnung Österreich")
 st.markdown(
     "Diese App erfasst alle relevanten Angaben für die steuerliche Reisekostenabrechnung in Österreich, "
     "inkl. Beleg-Upload, Einzelbeträge, Taggeld-, Nächtigungsgeld- und Kilometergeld-Berechnung. "
@@ -95,7 +95,7 @@ def reisekosten_formular(reiseart, reiseziel):
         abfahrt_dt = datetime.combine(abfahrt_datum, abfahrt_zeit)
         rueckkehr_dt = datetime.combine(rueckkehr_datum, rueckkehr_zeit)
 
-        transportmittel = st.multiselect("Transportmittel", ["PKW (privat)", "Bahn", "Flug", "Mietwagen", "Öffis", "Taxi", "Fahrrad"], key=f"tm_{form_key}")
+        transportmittel = st.multiselect("Transportmittel", ["PKW (privat)","PKW (dienst)", "Bahn", "Flug", "Mietwagen", "Öffis", "Taxi", "Fahrrad"], key=f"tm_{form_key}")
         km_anzahl = st.number_input("Gefahrene Kilometer (nur für PKW privat, sonst 0)", min_value=0, max_value=2000, value=0, key=f"km_{form_key}")
 
         with st.expander("Mahlzeiten (für Kürzung Taggeld)"):
