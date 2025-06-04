@@ -88,15 +88,14 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
 
 
     if ausland:
-        kuerzungen = 0
-        if fruehstueck_ext or fruehstueck_hotel:
-            kuerzungen += 0
-        if arbeitsessen_mittag or (mahlzeiten and mahlzeiten.get("Mittag", False)):
-            kuerzungen += 1
-        if arbeitsessen_abend or (mahlzeiten and mahlzeiten.get("Abend", False)):
-            kuerzungen += 1
 
-        taggeld *= max(1 - kuerzungen * (1/3), 0)
+        # Kürzung NUR bei Mittag UND Abendessen kostenlos
+        mittag_kostenlos = arbeitsessen_mittag or (mahlzeiten and mahlzeiten.get("Mittag", False))
+        abend_kostenlos = arbeitsessen_abend or (mahlzeiten and mahlzeiten.get("Abend", False))
+
+        if mittag_kostenlos and abend_kostenlos:
+           taggeld *= 2/3  # Nur dann 1/3 Kürzung
+      
 
     return max(round(taggeld, 2), 0.0)
 
