@@ -52,14 +52,30 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
         taggeld_voll = taggeld_saetze_ausland["Andere"]
 
     taggeld = 0.0
+    
+        
     if stunden >= 24:
         tage = int(stunden // 24)
         rest = stunden % 24
         taggeld = tage * taggeld_voll
-        taggeld += round((rest // 1) * (taggeld_voll / 12), 2)
-    elif stunden >= 3:
-        taggeld = round((stunden // 1) * (taggeld_voll / 12), 2)
+        if rest >= 12:
+            taggeld += taggeld_voll
+        elif rest >= 8:
+            taggeld += taggeld_voll * 2/3
+        elif rest >= 3:
+           taggeld += taggeld_voll * 1/3
+    else:
+       if stunden >= 12:
+           taggeld = taggeld_voll
+       elif stunden >= 8:
+           taggeld = taggeld_voll * 2/3
+       elif stunden >= 3:
+           taggeld = taggeld_voll * 1/3
 
+ 
+
+
+    
     if not ausland:
         if arbeitsessen_mittag:
             taggeld -= 15.0
