@@ -233,3 +233,4 @@ st.markdown("---")
 st.caption("Hinweis: Diese Anwendung orientiert sich an den aktuellen steuerlichen Vorgaben für Reisekosten in Österreich (Stand 2024, Quelle: WKO/Arbeiterkammer). Für verbindliche Auskünfte bitte immer die offiziellen WKO/BMF-Richtlinien konsultieren.")
 
 
+
