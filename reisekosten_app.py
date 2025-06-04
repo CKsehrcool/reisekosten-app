@@ -155,7 +155,7 @@ def reisekosten_formular(reiseart, reiseziel):
             fruehstueck_ext = st.checkbox("Kostenloses Frühstück außerhalb des Hotels erhalten", key=f"fruehstueck_ext_{form_key}")
             beruflich_veranlasst = st.checkbox("Reise war ausschließlich beruflich veranlasst", value=True, key=f"beruflich_{form_key}")
 
-        pauschale_naechtigung = st.checkbox("Nur Pauschale für Nächtigung (17 €/Nacht)?", value=False, key=f"pauschale_naechtigung_{form_key}")
+        pauschale_naechtigung = st.checkbox("Nur Pauschale für Nächtigung AT (17 €/Nacht)?", value=False, key=f"pauschale_naechtigung_{form_key}")
 
         beleg_betraege = {}
         with st.expander("Belege & Einzelbeträge erfassen"):
