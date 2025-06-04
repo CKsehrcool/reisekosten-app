@@ -38,7 +38,10 @@ taggeld_saetze_ausland = {
 if "reisen" not in st.session_state:
     st.session_state["reisen"] = []
 
-def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausland=False, fruehstueck_hotel=False, fruehstueck_ext=False):
+def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausland=False, fruehstueck_hotel=False, fruehstueck_ext=False, arbeitsessen_mittag=False, arbeitsessen_abend=False, beruflich_veranlasst=True):
+    if not beruflich_veranlasst:
+        return 0.0
+
     diff = rueckkehr - abreise
     stunden = diff.total_seconds() / 3600
     taggeld_voll = 26.4
@@ -58,19 +61,25 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
         taggeld = round((stunden // 1) * (taggeld_voll / 12), 2)
 
     if not ausland:
-        if mahlzeiten:
-            if mahlzeiten.get("Mittag", False):
-                taggeld *= 2/3
-            if mahlzeiten.get("Abend", False):
-                taggeld *= 2/3
+        if arbeitsessen_mittag:
+            taggeld -= 15.0
+        elif mahlzeiten and mahlzeiten.get("Mittag", False):
+            taggeld *= 2/3
+
+        if arbeitsessen_abend:
+            taggeld -= 15.0
+        elif mahlzeiten and mahlzeiten.get("Abend", False):
+            taggeld *= 2/3
+
         if fruehstueck_ext:
             taggeld *= 2/3
 
     if ausland:
-        if mahlzeiten and mahlzeiten.get("Mittag", False) and mahlzeiten.get("Abend", False):
+        arbeitsessen_count = int(arbeitsessen_mittag) + int(arbeitsessen_abend)
+        if arbeitsessen_count >= 2:
             taggeld *= 1/3
 
-    return round(taggeld, 2)
+    return max(round(taggeld, 2), 0.0)
 
 def naechtigungsgeld_berechnen(pauschale_naechtigung, beleg_betrag_hotel, fruehstueck_hotel, reiseart):
     pauschale_inland = 17.0
@@ -117,13 +126,16 @@ def reisekosten_formular(reiseart, reiseziel):
         transportmittel = st.multiselect("Transportmittel", ["PKW (privat)","PKW (dienst)", "Bahn", "Flug", "Mietwagen", "Öffis", "Taxi", "Fahrrad"], key=f"tm_{form_key}")
         km_anzahl = st.number_input("Gefahrene Kilometer (nur für PKW privat, sonst 0)", min_value=0, max_value=2000, value=0, key=f"km_{form_key}")
 
-        with st.expander("Mahlzeiten (für Kürzung Taggeld)"):
+        mit st.expander("Mahlzeiten und Arbeitsessen"):
             mahlzeiten = {
                 "Mittag": st.checkbox("Kostenloses Mittagessen erhalten?", key=f"mittag_{form_key}"),
                 "Abend": st.checkbox("Kostenloses Abendessen erhalten?", key=f"abend_{form_key}")
             }
+            arbeitsessen_mittag = st.checkbox("Mittagessen war Arbeitsessen mit Werbecharakter", key=f"ae_mittag_{form_key}")
+            arbeitsessen_abend = st.checkbox("Abendessen war Arbeitsessen mit Werbecharakter", key=f"ae_abend_{form_key}")
             fruehstueck_hotel = st.checkbox("Frühstück war im Hotelpreis inkludiert", key=f"fruehstueck_hotel_{form_key}")
             fruehstueck_ext = st.checkbox("Kostenloses Frühstück außerhalb des Hotels erhalten", key=f"fruehstueck_ext_{form_key}")
+            beruflich_veranlasst = st.checkbox("Reise war ausschließlich beruflich veranlasst", value=True, key=f"beruflich_{form_key}")
 
         pauschale_naechtigung = st.checkbox("Nur Pauschale für Nächtigung (17 €/Nacht)?", value=False, key=f"pauschale_naechtigung_{form_key}")
 
@@ -140,7 +152,7 @@ def reisekosten_formular(reiseart, reiseziel):
 
         if submit:
             st.success("Reise gespeichert.")
-            taggeld = taggeld_berechnen(abfahrt_dt, rueckkehr_dt, mahlzeiten, reiseziel if reiseart == "Ausland" else None, ausland=(reiseart == "Ausland"), fruehstueck_hotel=fruehstueck_hotel, fruehstueck_ext=fruehstueck_ext)
+            taggeld = taggeld_berechnen(abfahrt_dt, rueckkehr_dt, mahlzeiten, reiseziel if reiseart == "Ausland" else None, ausland=(reiseart == "Ausland"), fruehstueck_hotel=fruehstueck_hotel, fruehstueck_ext=fruehstueck_ext, arbeitsessen_mittag=arbeitsessen_mittag, arbeitsessen_abend=arbeitsessen_abend, beruflich_veranlasst=beruflich_veranlasst)
             naechtigungsgeld = naechtigungsgeld_berechnen(pauschale_naechtigung, beleg_betraege.get("Hotel", 0.0), fruehstueck_hotel, reiseart)
             export_data = {
                 "Mitarbeiter": mitarbeiter,
@@ -166,7 +178,6 @@ def reisekosten_formular(reiseart, reiseziel):
                 summe_belege += beleg_betraege[belegart]
             export_data["Gesamtkosten"] = export_data["Taggeld"] + export_data["Kilometergeld"] + export_data["Nächtigungsgeld"] + summe_belege
             return export_data
-
     return None
 
 st.header("Neue Reise erfassen")
@@ -231,6 +242,7 @@ else:
 
 st.markdown("---")
 st.caption("Hinweis: Diese Anwendung orientiert sich an den aktuellen steuerlichen Vorgaben für Reisekosten in Österreich (Stand 2024, Quelle: WKO/Arbeiterkammer). Für verbindliche Auskünfte bitte immer die offiziellen WKO/BMF-Richtlinien konsultieren.")
+
 
 
 
