@@ -126,7 +126,7 @@ def reisekosten_formular(reiseart, reiseziel):
         transportmittel = st.multiselect("Transportmittel", ["PKW (privat)","PKW (dienst)", "Bahn", "Flug", "Mietwagen", "Öffis", "Taxi", "Fahrrad"], key=f"tm_{form_key}")
         km_anzahl = st.number_input("Gefahrene Kilometer (nur für PKW privat, sonst 0)", min_value=0, max_value=2000, value=0, key=f"km_{form_key}")
 
-        mit st.expander("Mahlzeiten und Arbeitsessen"):
+        with st.expander("Mahlzeiten und Arbeitsessen"):
             mahlzeiten = {
                 "Mittag": st.checkbox("Kostenloses Mittagessen erhalten?", key=f"mittag_{form_key}"),
                 "Abend": st.checkbox("Kostenloses Abendessen erhalten?", key=f"abend_{form_key}")
