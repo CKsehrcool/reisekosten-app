@@ -174,8 +174,11 @@ def reisekosten_formular(reiseart, reiseziel):
             }
             summe_belege = 0.0
             for belegart, _ in belegarten:
+                if belegart == "Hotel":
+                     continue  # Hotel nicht doppelt zählen
                 export_data[f"{belegart}_Betrag"] = beleg_betraege[belegart]
                 summe_belege += beleg_betraege[belegart]
+            export_data["Hotel_Betrag"] = beleg_betraege["Hotel"]  # Nur zur Anzeige, nicht zur Summe
             export_data["Gesamtkosten"] = export_data["Taggeld"] + export_data["Kilometergeld"] + export_data["Nächtigungsgeld"] + summe_belege
             return export_data
     return None
