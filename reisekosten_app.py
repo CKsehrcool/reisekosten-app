@@ -95,9 +95,9 @@ def naechtigungsgeld_berechnen(pauschale_naechtigung, beleg_betrag_hotel, fruehs
             return fruehstueck_inland
     else:
         if beleg_betrag_hotel > 0:
-            return beleg_betrag_hotel
-        elif fruehstueck_hotel:
-            return fruehstueck_ausland
+          if fruehstueck_hotel:
+              return max(beleg_betrag_hotel - fruehstueck_ausland, 0.0)
+          return beleg_betrag_hotel
     return 0.0
 
 def km_geld(km):
