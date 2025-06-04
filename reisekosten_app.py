@@ -7,7 +7,7 @@ import xlsxwriter
 
 st.set_page_config(page_title="Reisekostenabrechnung Österreich", layout="wide")
 
-st.title("🇦🇹 Reisekostenabrechnung Österreich")
+st.title("\U0001F1E6\U0001F1F9 Reisekostenabrechnung Österreich")
 st.markdown(
     "Diese App erfasst alle relevanten Angaben für die steuerliche Reisekostenabrechnung in Österreich, "
     "inkl. Beleg-Upload, Einzelbeträge, Taggeld-, Nächtigungsgeld- und Kilometergeld-Berechnung. "
@@ -72,6 +72,25 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
 
     return round(taggeld, 2)
 
+def naechtigungsgeld_berechnen(pauschale_naechtigung, beleg_betrag_hotel, fruehstueck_hotel, reiseart):
+    pauschale_inland = 17.0
+    fruehstueck_inland = 4.5
+    fruehstueck_ausland = 5.85
+
+    if reiseart == "Inland":
+        if pauschale_naechtigung:
+            return pauschale_inland
+        elif beleg_betrag_hotel > 0:
+            return beleg_betrag_hotel
+        elif fruehstueck_hotel:
+            return fruehstueck_inland
+    else:
+        if beleg_betrag_hotel > 0:
+            return beleg_betrag_hotel
+        elif fruehstueck_hotel:
+            return fruehstueck_ausland
+    return 0.0
+
 def km_geld(km):
     return round(km * 0.5, 2)
 
@@ -106,7 +125,7 @@ def reisekosten_formular(reiseart, reiseziel):
             fruehstueck_hotel = st.checkbox("Frühstück war im Hotelpreis inkludiert", key=f"fruehstueck_hotel_{form_key}")
             fruehstueck_ext = st.checkbox("Kostenloses Frühstück außerhalb des Hotels erhalten", key=f"fruehstueck_ext_{form_key}")
 
-        pauschale_naechtigung = st.checkbox("Nur Pauschale für Nächtigung (15 €/Nacht)?", value=False, key=f"pauschale_naechtigung_{form_key}")
+        pauschale_naechtigung = st.checkbox("Nur Pauschale für Nächtigung (17 €/Nacht)?", value=False, key=f"pauschale_naechtigung_{form_key}")
 
         beleg_betraege = {}
         with st.expander("Belege & Einzelbeträge erfassen"):
@@ -121,6 +140,8 @@ def reisekosten_formular(reiseart, reiseziel):
 
         if submit:
             st.success("Reise gespeichert.")
+            taggeld = taggeld_berechnen(abfahrt_dt, rueckkehr_dt, mahlzeiten, reiseziel if reiseart == "Ausland" else None, ausland=(reiseart == "Ausland"), fruehstueck_hotel=fruehstueck_hotel, fruehstueck_ext=fruehstueck_ext)
+            naechtigungsgeld = naechtigungsgeld_berechnen(pauschale_naechtigung, beleg_betraege.get("Hotel", 0.0), fruehstueck_hotel, reiseart)
             export_data = {
                 "Mitarbeiter": mitarbeiter,
                 "Projekt": projekt,
@@ -133,7 +154,8 @@ def reisekosten_formular(reiseart, reiseziel):
                 "Rückkehr": rueckkehr_dt,
                 "Transportmittel": ", ".join(transportmittel),
                 "Kilometer": km_anzahl,
-                "Taggeld": taggeld_berechnen(abfahrt_dt, rueckkehr_dt, mahlzeiten, reiseziel if reiseart == "Ausland" else None, ausland=(reiseart == "Ausland"), fruehstueck_hotel=fruehstueck_hotel, fruehstueck_ext=fruehstueck_ext),
+                "Taggeld": taggeld,
+                "Nächtigungsgeld": naechtigungsgeld,
                 "Kilometergeld": km_geld(km_anzahl),
                 "Bemerkung": bemerkung,
                 "Belege": sammelbelege
@@ -142,7 +164,7 @@ def reisekosten_formular(reiseart, reiseziel):
             for belegart, _ in belegarten:
                 export_data[f"{belegart}_Betrag"] = beleg_betraege[belegart]
                 summe_belege += beleg_betraege[belegart]
-            export_data["Gesamtkosten"] = export_data["Taggeld"] + export_data["Kilometergeld"] + summe_belege
+            export_data["Gesamtkosten"] = export_data["Taggeld"] + export_data["Kilometergeld"] + export_data["Nächtigungsgeld"] + summe_belege
             return export_data
 
     return None
@@ -162,7 +184,7 @@ if reise:
 st.header("Reiseübersicht")
 if st.session_state["reisen"]:
     df = pd.DataFrame([r for r in st.session_state["reisen"] if isinstance(r, dict)])
-    uebersicht_cols = ["Mitarbeiter", "Projekt", "Reiseart", "Zielland", "Startort", "Zielort", "Abfahrt", "Rückkehr", "Taggeld", "Kilometergeld"] + [f"{b[0]}_Betrag" for b in belegarten] + ["Gesamtkosten"]
+    uebersicht_cols = ["Mitarbeiter", "Projekt", "Reiseart", "Zielland", "Startort", "Zielort", "Abfahrt", "Rückkehr", "Taggeld", "Kilometergeld", "Nächtigungsgeld"] + [f"{b[0]}_Betrag" for b in belegarten] + ["Gesamtkosten"]
     st.dataframe(df[uebersicht_cols])
     st.markdown(f"**Anzahl Reisen:** {len(df)}")
     st.markdown(f"**Gesamtkosten (alle Reisen):** € {round(df['Gesamtkosten'].sum(), 2)}")
@@ -209,4 +231,5 @@ else:
 
 st.markdown("---")
 st.caption("Hinweis: Diese Anwendung orientiert sich an den aktuellen steuerlichen Vorgaben für Reisekosten in Österreich (Stand 2024, Quelle: WKO/Arbeiterkammer). Für verbindliche Auskünfte bitte immer die offiziellen WKO/BMF-Richtlinien konsultieren.")
+
 
