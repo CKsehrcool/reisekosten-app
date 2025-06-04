@@ -90,7 +90,7 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
     if ausland:
         kuerzungen = 0
         if fruehstueck_ext or fruehstueck_hotel:
-            kuerzungen += 1
+            kuerzungen += 0
         if arbeitsessen_mittag or (mahlzeiten and mahlzeiten.get("Mittag", False)):
             kuerzungen += 1
         if arbeitsessen_abend or (mahlzeiten and mahlzeiten.get("Abend", False)):
