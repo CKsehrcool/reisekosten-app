@@ -71,10 +71,6 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
            taggeld = taggeld_voll * 2/3
        elif stunden >= 3:
            taggeld = taggeld_voll * 1/3
-
- 
-
-
     
     if not ausland:
         if arbeitsessen_mittag:
@@ -90,10 +86,17 @@ def taggeld_berechnen(abreise, rueckkehr, mahlzeiten=None, reiseziel=None, ausla
         if fruehstueck_ext:
             taggeld *= 2/3
 
+
     if ausland:
-        arbeitsessen_count = int(arbeitsessen_mittag) + int(arbeitsessen_abend)
-        if arbeitsessen_count >= 2:
-            taggeld *= 1/3
+        kuerzungen = 0
+        if fruehstueck_ext or fruehstueck_hotel:
+            kuerzungen += 1
+        if arbeitsessen_mittag or (mahlzeiten and mahlzeiten.get("Mittag", False)):
+            kuerzungen += 1
+        if arbeitsessen_abend or (mahlzeiten and mahlzeiten.get("Abend", False)):
+            kuerzungen += 1
+
+        taggeld *= max(1 - kuerzungen * (1/3), 0)
 
     return max(round(taggeld, 2), 0.0)
 
